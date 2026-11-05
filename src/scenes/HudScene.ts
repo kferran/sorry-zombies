@@ -8,6 +8,7 @@ export class HudScene extends Phaser.Scene {
   private hearts: Phaser.GameObjects.Image[] = [];
   private waveLabel!: Phaser.GameObjects.Text;
   private pauseOverlay?: Phaser.GameObjects.Container;
+  private pauseLabel?: Phaser.GameObjects.Text;
 
   private mode: ModeConfig = MODES.casual;
 
@@ -44,20 +45,26 @@ export class HudScene extends Phaser.Scene {
     else this.pauseGame();
   }
 
-  pauseGame(): void {
+  pauseGame(message = 'Paused\n\nPress Esc or tap to resume'): void {
     if (this.paused || !this.scene.isActive('Game')) return;
     this.scene.pause('Game');
     const { width, height } = this.scale;
     const shade = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6).setInteractive();
-    const label = this.add.text(width / 2, height / 2, 'Paused\n\nPress Esc or tap to resume', {
+    const label = this.add.text(width / 2, height / 2, message, {
       fontFamily: 'monospace', fontSize: '36px', color: '#ffffff', align: 'center',
     }).setOrigin(0.5);
     shade.on('pointerup', () => this.resumeGame());
+    this.pauseLabel = label;
     this.pauseOverlay = this.add.container(0, 0, [shade, label]).setDepth(2000);
+  }
+
+  setPauseMessage(message: string): void {
+    this.pauseLabel?.setText(message);
   }
 
   resumeGame(): void {
     if (!this.paused) return;
+    if (window.innerHeight > window.innerWidth) return; // still portrait: stay paused
     this.pauseOverlay?.destroy();
     this.pauseOverlay = undefined;
     this.scene.resume('Game');

@@ -4,6 +4,8 @@ import { MODES } from '../shared/modes';
 import { bus } from '../shared/events';
 import type { InputSource } from '../shared/input/InputSource';
 import { KeyboardMouseInput } from '../shared/input/KeyboardMouseInput';
+import { TouchInput } from '../shared/input/TouchInput';
+import { chooseInput, getInputPref } from '../shared/input/selectInput';
 import { Hero } from '../entities/hero/Hero';
 import { HERO } from '../entities/hero/hero.stats';
 import { Pea } from '../entities/pea/Pea';
@@ -61,7 +63,9 @@ export class GameScene extends Phaser.Scene {
     this.hero = new Hero(this, width / 2, height / 2);
     this.zombies = this.physics.add.group({ classType: Zombie, maxSize: MAX_ZOMBIES });
     this.peas = this.physics.add.group({ classType: Pea, maxSize: 40, runChildUpdate: false });
-    this.controls = new KeyboardMouseInput(this);
+    this.controls = chooseInput(getInputPref(), this.sys.game.device.input.touch) === 'touch'
+      ? new TouchInput(this, this.mode.guilt)
+      : new KeyboardMouseInput(this);
 
     this.physics.add.overlap(this.peas, this.zombies, (p, z) => this.onPeaHitsZombie(p as Pea, z as Zombie));
     this.physics.add.overlap(this.hero, this.zombies, (_h, z) => this.onZombieTouchesHero(z as Zombie));
@@ -81,10 +85,16 @@ export class GameScene extends Phaser.Scene {
     this.scene.launch('Hud', { mode: this.mode });
     const onVisibility = () => { if (document.hidden) this.hud().pauseGame(); };
     document.addEventListener('visibilitychange', onVisibility);
+    const onResize = () => this.checkOrientation();
+    this.scale.on(Phaser.Scale.Events.RESIZE, onResize);
+    this.scale.on(Phaser.Scale.Events.ORIENTATION_CHANGE, onResize);
+    this.time.delayedCall(0, onResize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.controls.destroy();
       this.bubble.destroy();
       document.removeEventListener('visibilitychange', onVisibility);
+      this.scale.off(Phaser.Scale.Events.RESIZE, onResize);
+      this.scale.off(Phaser.Scale.Events.ORIENTATION_CHANGE, onResize);
       bus.clear();
     });
 
@@ -94,6 +104,17 @@ export class GameScene extends Phaser.Scene {
 
   private hud(): HudScene {
     return this.scene.get('Hud') as HudScene;
+  }
+
+  /** Landscape only: a portrait phone pauses behind a "please rotate" overlay. */
+  private checkOrientation(): void {
+    if (this.ended) return;
+    if (window.innerHeight > window.innerWidth) {
+      if (this.hud().paused) this.hud().setPauseMessage('Please rotate your phone\nto landscape');
+      else this.hud().pauseGame('Please rotate your phone\nto landscape');
+    } else if (this.hud().paused) {
+      this.hud().setPauseMessage('Paused\n\nPress Esc or tap to resume');
+    }
   }
 
   private startWave(n: number): void {

@@ -2,6 +2,13 @@ import Phaser from 'phaser';
 import { Button } from '../shared/ui/Button';
 import { MODES, type ModeId } from '../shared/modes';
 import { getBest } from '../features/scoring/bestScores';
+import { chooseInput, getInputPref, nextInputPref, setInputPref, type InputPref } from '../shared/input/selectInput';
+
+const HINTS = {
+  mouse: 'WASD to move · mouse to aim · click to shoot · Space to apologize',
+  touch: 'Left thumb to move · drag right to aim and fire · tap Sorry! to apologize',
+};
+const PREF_LABELS: Record<InputPref, string> = { auto: 'Controls: Auto', touch: 'Controls: Touch', mouse: 'Controls: Mouse' };
 
 export class MenuScene extends Phaser.Scene {
   constructor() { super('Menu'); }
@@ -21,9 +28,20 @@ export class MenuScene extends Phaser.Scene {
         }).setOrigin(0.5);
       }
     });
-    this.add.text(width / 2, 640, 'WASD to move · mouse to aim · click to shoot · Space to apologize', {
+    const hint = this.add.text(width / 2, 640, '', {
       fontFamily: 'monospace', fontSize: '18px', color: '#aaaaaa',
     }).setOrigin(0.5);
+    const hasTouch = this.sys.game.device.input.touch;
+    let pref = getInputPref();
+    const toggle = this.add.text(width / 2, 560, '', {
+      fontFamily: 'monospace', fontSize: '20px', color: '#ffffff', backgroundColor: '#333333', padding: { x: 12, y: 6 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const render = () => {
+      toggle.setText(PREF_LABELS[pref]);
+      hint.setText(HINTS[chooseInput(pref, hasTouch)]);
+    };
+    toggle.on('pointerup', () => { pref = nextInputPref(pref); setInputPref(pref); render(); });
+    render();
   }
 
   startRun(modeId: ModeId): void {
