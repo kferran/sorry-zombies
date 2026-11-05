@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Sorry, Zombies</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%A7%9F%3C/text%3E%3C/svg%3E" />
+    <style>
+      html, body { margin: 0; height: 100%; background: #1a1a1a; overflow: hidden; }
+      #game { width: 100vw; height: 100vh; touch-action: none; }
+      #rotate { display: none; position: fixed; inset: 0; z-index: 10; background: #1a1a1a; color: #fff;
+        font: 24px/1.4 monospace; align-items: center; justify-content: center; text-align: center; padding: 24px; }
+      @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <div id="rotate">📱↻<br /><br />Sorry, Zombies plays in landscape.<br />Please rotate your phone.</div>
+    <script type="module" src="/src/app/main.ts"></script>
+  </body>
+</html>
