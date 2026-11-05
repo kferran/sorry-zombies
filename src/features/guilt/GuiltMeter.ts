@@ -71,7 +71,8 @@ export class GuiltMeter {
     this.current = Math.min(GUILT.max, this.current + amount);
     if (this.current < GUILT.max) return { breakdown: false };
     this.current = GUILT.afterBreakdown;
-    this.owed.clear();
+    // Halve every debt so the debts still sum to the meter and can all be apologized away.
+    for (const [id, debt] of this.owed) this.owed.set(id, debt * 0.5);
     return { breakdown: true };
   }
 }

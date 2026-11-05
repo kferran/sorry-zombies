@@ -59,13 +59,26 @@ describe('GuiltMeter', () => {
     expect(g.wobbleDegrees()).toBe(4);
   });
 
-  it('breakdown at 100 resets to 50 and clears owed guilt', () => {
+  it('breakdown halves every debt and keeps the sum equal to the meter', () => {
     const g = new GuiltMeter(true);
     const results = Array.from({ length: 10 }, (_, i) => g.onKill(i + 1).breakdown);
     expect(results.slice(0, 9).every(b => !b)).toBe(true);
     expect(results[9]).toBe(true);
     expect(g.value).toBe(50);
-    expect(g.apologize(0).cleared).toBe(0);
+    // ten debts of 5 each: five apologies (spaced past the cooldown) clear 25 of the 50.
+    expect(g.apologize(0).cleared).toBe(5);
+    expect(g.value).toBe(45);
+    let total = 5;
+    for (let i = 1; i < 10; i++) total += g.apologize(i * 1000).cleared;
+    expect(total).toBe(50);
+    expect(g.value).toBe(0);
+  });
+
+  it('apology after a breakdown clears the halved debt', () => {
+    const g = new GuiltMeter(true);
+    for (let i = 0; i < 10; i++) g.onKill(i + 1);
+    expect(g.apologize(0)).toEqual({ accepted: true, cleared: 5 });
+    expect(g.value).toBe(45);
   });
 
   it('disabled meter never changes', () => {

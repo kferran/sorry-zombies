@@ -1,6 +1,10 @@
-export type LineKind = 'hit' | 'kill' | 'apology' | 'breakdown' | 'summaryWin' | 'summaryLose';
+export type LineKind =
+  | 'hit' | 'kill' | 'rise' | 'hurt' | 'ghostKill' | 'catKill'
+  | 'apology' | 'breakdown' | 'preApology' | 'levelCleared'
+  | 'bossJudge' | 'bossDisappointed' | 'bossAccept' | 'bossForgive' | 'bossDefeat'
+  | 'summaryWin' | 'summaryLose' | 'summaryForgiven';
 export type Tier = 1 | 2 | 3;
-/** Only hit and kill lines carry a tier. */
+/** Only hit, kill and rise lines carry a tier. */
 export type Line = { kind: LineKind; tier?: Tier; text: string };
 
 const FALLBACK = 'Sorry!';
@@ -17,9 +21,10 @@ export class ApologyPicker {
 
   constructor(private readonly lines: Line[], private readonly rng: () => number = Math.random) {}
 
-  pick(kind: LineKind, wave = 1): string {
-    const tiered = kind === 'hit' || kind === 'kill';
-    const tier = tiered ? tierForWave(wave) : undefined;
+  /** An explicit `tier` (side-scroller levels) wins over the wave (arena). */
+  pick(kind: LineKind, wave = 1, tier?: Tier): string {
+    const tiered = kind === 'hit' || kind === 'kill' || kind === 'rise';
+    tier = tiered ? tier ?? tierForWave(wave) : undefined;
     let group = this.group(kind, tier);
     // Someone emptied this tier in lines.ts: borrow from any tier of the same kind.
     if (group.length === 0 && tiered) group = this.group(kind, undefined, true);

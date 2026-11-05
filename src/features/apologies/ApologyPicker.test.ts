@@ -39,6 +39,17 @@ describe('ApologyPicker', () => {
     expect(new ApologyPicker(lines).pick('apology', 9)).toBe('sorry-1');
   });
 
+  it('explicit tier overrides the wave', () => {
+    const picker = new ApologyPicker(lines);
+    for (let i = 0; i < 6; i++) expect(['a1', 'a2']).toContain(picker.pick('hit', 9, 1));
+  });
+
+  it('rise is tiered and falls back to another tier, then Sorry!', () => {
+    const picker = new ApologyPicker([t('rise', 2, 'r2')]);
+    expect(picker.pick('rise', 1, 3)).toBe('r2');
+    expect(new ApologyPicker([]).pick('rise', 1, 1)).toBe('Sorry!');
+  });
+
   it('falls back when a group is empty', () => {
     const picker = new ApologyPicker(lines);
     expect(picker.pick('kill', 9)).toBe('k1');
@@ -57,15 +68,29 @@ describe('LINES', () => {
     }
   });
 
-  it('ships enough of the untiered kinds', () => {
-    expect(count('apology')).toBeGreaterThanOrEqual(8);
-    expect(count('breakdown')).toBeGreaterThanOrEqual(4);
-    expect(count('summaryWin')).toBeGreaterThanOrEqual(4);
-    expect(count('summaryLose')).toBeGreaterThanOrEqual(4);
+  it('ships enough rise lines per tier', () => {
+    for (const tier of [1, 2, 3] as const) expect(count('rise', tier)).toBeGreaterThanOrEqual(4);
   });
 
-  it('only hit and kill lines carry a tier', () => {
-    LINES.forEach(l => expect(l.tier !== undefined).toBe(l.kind === 'hit' || l.kind === 'kill'));
+  it('ships enough of the untiered kinds', () => {
+    const min: Record<string, number> = {
+      ghostKill: 5, catKill: 5, hurt: 6, apology: 8, breakdown: 4, preApology: 5, levelCleared: 6,
+      bossJudge: 4, bossDisappointed: 4, bossAccept: 4, bossForgive: 4, bossDefeat: 4,
+      summaryWin: 4, summaryLose: 4, summaryForgiven: 4,
+    };
+    for (const [kind, n] of Object.entries(min)) {
+      expect(count(kind as Line['kind']), kind).toBeGreaterThanOrEqual(n);
+    }
+  });
+
+  it('only hit, kill and rise lines carry a tier', () => {
+    LINES.forEach(l =>
+      expect(l.tier !== undefined).toBe(l.kind === 'hit' || l.kind === 'kill' || l.kind === 'rise'));
+  });
+
+  it('no hit, kill or rise line mentions peas', () => {
+    LINES.filter(l => l.kind === 'hit' || l.kind === 'kill' || l.kind === 'rise')
+      .forEach(l => expect(l.text).not.toMatch(/\bpeas?\b/i));
   });
 
   it('has no empty or duplicate lines, and none too long for the bubble', () => {
