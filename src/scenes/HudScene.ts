@@ -4,12 +4,51 @@ import { HERO } from '../entities/hero/hero.stats';
 
 export class HudScene extends Phaser.Scene {
   private hearts: Phaser.GameObjects.Image[] = [];
+  private waveLabel!: Phaser.GameObjects.Text;
+  private pauseOverlay?: Phaser.GameObjects.Container;
 
   constructor() { super('Hud'); }
 
   create(): void {
+    this.pauseOverlay = undefined;
     this.hearts = Array.from({ length: HERO.hearts }, (_, i) => this.add.image(28 + i * 26, 28, 'heart'));
+    this.waveLabel = this.add.text(this.scale.width - 20, 18, '', {
+      fontFamily: 'monospace', fontSize: '22px', color: '#ffffff',
+    }).setOrigin(1, 0);
     bus.on('heroHurt', ({ hearts }) => this.drawHearts(hearts), this);
+    bus.on('waveStarted', ({ wave }) => this.waveLabel.setText(`Wave ${wave}/10`), this);
+
+    const kb = this.input.keyboard!;
+    kb.on('keydown-ESC', () => this.togglePause());
+    kb.on('keydown-P', () => this.togglePause());
+  }
+
+  get paused(): boolean {
+    return this.pauseOverlay !== undefined;
+  }
+
+  togglePause(): void {
+    if (this.paused) this.resumeGame();
+    else this.pauseGame();
+  }
+
+  pauseGame(): void {
+    if (this.paused || !this.scene.isActive('Game')) return;
+    this.scene.pause('Game');
+    const { width, height } = this.scale;
+    const shade = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6).setInteractive();
+    const label = this.add.text(width / 2, height / 2, 'Paused\n\nPress Esc or tap to resume', {
+      fontFamily: 'monospace', fontSize: '36px', color: '#ffffff', align: 'center',
+    }).setOrigin(0.5);
+    shade.on('pointerup', () => this.resumeGame());
+    this.pauseOverlay = this.add.container(0, 0, [shade, label]).setDepth(2000);
+  }
+
+  resumeGame(): void {
+    if (!this.paused) return;
+    this.pauseOverlay?.destroy();
+    this.pauseOverlay = undefined;
+    this.scene.resume('Game');
   }
 
   private drawHearts(count: number): void {

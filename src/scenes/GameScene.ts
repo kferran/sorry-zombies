@@ -9,6 +9,14 @@ import { HERO } from '../entities/hero/hero.stats';
 import { Pea } from '../entities/pea/Pea';
 import { Zombie } from '../entities/zombie/Zombie';
 import type { ZombieKind } from '../entities/zombie/zombie.stats';
+import { WAVES, WAVE_SUBTITLES, type WaveSpec } from '../features/waves/waves';
+import { WaveDirector } from '../features/waves/WaveDirector';
+import { WaveBanner } from '../features/waves/WaveBanner';
+import { RunStats, scoreRun } from '../features/scoring/Scoring';
+import type { HudScene } from './HudScene';
+
+const BREATHER_MS = 3000;
+const MAX_ZOMBIES = 80;
 
 export class GameScene extends Phaser.Scene {
   mode: ModeConfig = MODES.casual;
@@ -17,12 +25,21 @@ export class GameScene extends Phaser.Scene {
   peas!: Phaser.Physics.Arcade.Group;
   private controls!: InputSource;
   wave = 1;
+  director!: WaveDirector;
+  runStats!: RunStats;
+  private spawnTimer?: Phaser.Time.TimerEvent;
+  private betweenWaves = false;
+  private ended = false;
 
   constructor() { super('Game'); }
 
   init(data: { mode?: ModeConfig }): void {
     this.mode = data.mode ?? MODES.casual;
     this.wave = 1;
+    this.director = new WaveDirector(WAVES, this.mode.waveScale);
+    this.runStats = new RunStats();
+    this.betweenWaves = false;
+    this.ended = false;
   }
 
   create(): void {
@@ -31,7 +48,7 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, width, height);
 
     this.hero = new Hero(this, width / 2, height / 2);
-    this.zombies = this.physics.add.group({ classType: Zombie, maxSize: 60 });
+    this.zombies = this.physics.add.group({ classType: Zombie, maxSize: MAX_ZOMBIES });
     this.peas = this.physics.add.group({ classType: Pea, maxSize: 40, runChildUpdate: false });
     this.controls = new KeyboardMouseInput(this);
 
@@ -39,10 +56,63 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.hero, this.zombies, (_h, z) => this.onZombieTouchesHero(z as Zombie));
 
     this.scene.launch('Hud');
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.controls.destroy());
+    const onVisibility = () => { if (document.hidden) this.hud().pauseGame(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.controls.destroy();
+      document.removeEventListener('visibilitychange', onVisibility);
+      bus.clear();
+    });
 
-    // Temporary spawner; Task 7 replaces it with the WaveDirector.
-    this.time.addEvent({ delay: 2000, loop: true, callback: () => this.spawnZombie('shambler', 1) });
+    // Let the HUD subscribe before the first wave announces itself.
+    this.time.delayedCall(0, () => this.startWave(1));
+  }
+
+  private hud(): HudScene {
+    return this.scene.get('Hud') as HudScene;
+  }
+
+  private startWave(n: number): void {
+    const spec = this.director.startWave(n);
+    this.wave = n;
+    this.betweenWaves = false;
+    bus.emit('waveStarted', { wave: n });
+    WaveBanner.show(this, `Wave ${n}: ${WAVE_SUBTITLES[n - 1]}`, 1800);
+    this.spawnTimer?.remove();
+    this.spawnTimer = this.time.addEvent({
+      delay: spec.spawnIntervalMs, loop: true, callback: () => this.spawnNext(spec),
+    });
+  }
+
+  private spawnNext(spec: WaveSpec): void {
+    if (this.zombies.countActive(true) >= MAX_ZOMBIES) return; // wait for room; never drop a spawn
+    const kind = this.director.nextSpawn();
+    if (!kind) {
+      this.spawnTimer?.remove();
+      return;
+    }
+    this.spawnZombie(kind, spec.speedMultiplier);
+  }
+
+  private onWaveCleared(): void {
+    this.runStats.wavesCleared++;
+    bus.emit('waveCleared', { wave: this.wave });
+    if (this.wave >= this.director.totalWaves) {
+      this.endRun('win');
+      return;
+    }
+    this.betweenWaves = true;
+    this.time.delayedCall(BREATHER_MS, () => this.startWave(this.wave + 1));
+  }
+
+  private endRun(outcome: 'win' | 'lose'): void {
+    if (this.ended) return;
+    this.ended = true;
+    this.spawnTimer?.remove();
+    bus.emit('runEnded', { outcome });
+    const score = scoreRun(this.runStats, this.mode);
+    this.scene.stop('Hud');
+    this.scene.start('Summary', { mode: this.mode, stats: this.runStats, outcome, score });
   }
 
   spawnZombie(kind: ZombieKind, speedMultiplier: number): Zombie | null {
@@ -69,9 +139,13 @@ export class GameScene extends Phaser.Scene {
     pea.retire();
     const result = zombie.health.takeHit();
     if (result === 'hit') {
+      this.runStats.zombiesHurt++;
       bus.emit('zombieHit', { zombieId: zombie.zombieId, wave: this.wave });
     } else if (result === 'killed') {
+      this.runStats.zombiesHurt++;
+      this.runStats.zombiesKilled++;
       zombie.retire();
+      this.director.onZombieKilled();
       bus.emit('zombieKilled', { zombieId: zombie.zombieId, wave: this.wave });
     }
   }
@@ -82,16 +156,16 @@ export class GameScene extends Phaser.Scene {
     if (!this.hero.hurt(now)) return;
     zombie.knockBack(this.hero, HERO.knockback, now);
     bus.emit('heroHurt', { hearts: this.hero.hearts });
-    if (this.hero.hearts <= 0) this.onHeroDown();
-  }
-
-  /** Task 7 replaces this with the summary screen. */
-  protected onHeroDown(): void {
-    this.scene.stop('Hud');
-    this.scene.start('Menu');
   }
 
   update(): void {
+    if (this.ended) return;
+    // Hearts are checked before wave-clear, so a last kill and a last heart on one frame is a loss.
+    if (this.hero.hearts <= 0) {
+      this.endRun('lose');
+      return;
+    }
+    if (!this.betweenWaves && this.director.isWaveCleared()) this.onWaveCleared();
     const now = this.time.now;
     const body = this.hero.body as Phaser.Physics.Arcade.Body;
     if (this.hero.isFrozen(now)) {
