@@ -4,12 +4,14 @@ import type { RunStats } from '../features/scoring/Scoring';
 import { Button } from '../shared/ui/Button';
 import { ApologyPicker } from '../features/apologies/ApologyPicker';
 import { LINES } from '../features/apologies/lines';
+import { gradeFor } from '../features/scoring/Scoring';
 
 export type SummaryData = {
   mode: ModeConfig;
   stats: RunStats;
   outcome: 'win' | 'lose';
   score: number;
+  newBest?: boolean;
 };
 
 export class SummaryScene extends Phaser.Scene {
@@ -23,7 +25,7 @@ export class SummaryScene extends Phaser.Scene {
 
   create(): void {
     const { width } = this.scale;
-    const { mode, stats, outcome, score } = this.summary;
+    const { mode, stats, outcome, score, newBest } = this.summary;
     const style = { fontFamily: 'monospace', color: '#ffffff' };
     this.add.text(width / 2, 110, outcome === 'win' ? 'You survived.' : 'You were overwhelmed.', { ...style, fontSize: '56px' }).setOrigin(0.5);
     this.add.text(width / 2, 170, mode.label, { ...style, fontSize: '24px', color: '#aaaaaa' }).setOrigin(0.5);
@@ -32,9 +34,10 @@ export class SummaryScene extends Phaser.Scene {
       `Zombies hurt    ${stats.zombiesHurt}`,
       `Zombies killed  ${stats.zombiesKilled}`,
       `Apologies made  ${stats.apologies}`,
-      `Score           ${score}`,
+      `Score           ${score}${newBest ? '   New best!' : ''}`,
     ];
-    this.add.text(width / 2, 300, rows.join('\n'), { ...style, fontSize: '26px', lineSpacing: 10 }).setOrigin(0.5);
+    if (mode.guilt) rows.push(`Conscience      ${gradeFor(stats.averageGuilt())}`);
+    this.add.text(width / 2, 215, rows.join('\n'), { ...style, fontSize: '26px', lineSpacing: 10 }).setOrigin(0.5, 0);
     const closing = new ApologyPicker(LINES).pick(outcome === 'win' ? 'summaryWin' : 'summaryLose');
     this.add.text(width / 2, 500, closing, { ...style, fontSize: '24px', color: '#facc15', wordWrap: { width: 900 }, align: 'center' }).setOrigin(0.5);
     Button(this, width / 2, 620, 'Play again', () => this.scene.start('Menu'));

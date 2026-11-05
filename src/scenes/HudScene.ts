@@ -1,13 +1,21 @@
 import Phaser from 'phaser';
 import { bus } from '../shared/events';
 import { HERO } from '../entities/hero/hero.stats';
+import { MODES, type ModeConfig } from '../shared/modes';
+import { GuiltBar } from '../features/guilt/GuiltBar';
 
 export class HudScene extends Phaser.Scene {
   private hearts: Phaser.GameObjects.Image[] = [];
   private waveLabel!: Phaser.GameObjects.Text;
   private pauseOverlay?: Phaser.GameObjects.Container;
 
+  private mode: ModeConfig = MODES.casual;
+
   constructor() { super('Hud'); }
+
+  init(data: { mode?: ModeConfig }): void {
+    this.mode = data.mode ?? MODES.casual;
+  }
 
   create(): void {
     this.pauseOverlay = undefined;
@@ -16,6 +24,10 @@ export class HudScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '22px', color: '#ffffff',
     }).setOrigin(1, 0);
     bus.on('heroHurt', ({ hearts }) => this.drawHearts(hearts), this);
+    if (this.mode.guilt) {
+      const bar = new GuiltBar(this);
+      bus.on('guiltChanged', ({ guilt, level }) => bar.set(guilt, level), this);
+    }
     bus.on('waveStarted', ({ wave }) => this.waveLabel.setText(`Wave ${wave}/10`), this);
 
     const kb = this.input.keyboard!;

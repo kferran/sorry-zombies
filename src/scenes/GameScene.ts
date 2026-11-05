@@ -13,6 +13,8 @@ import { WAVES, WAVE_SUBTITLES, type WaveSpec } from '../features/waves/waves';
 import { WaveDirector } from '../features/waves/WaveDirector';
 import { WaveBanner } from '../features/waves/WaveBanner';
 import { RunStats, scoreRun } from '../features/scoring/Scoring';
+import { saveIfBest } from '../features/scoring/bestScores';
+import { GuiltMeter } from '../features/guilt/GuiltMeter';
 import type { HudScene } from './HudScene';
 import { ApologyPicker } from '../features/apologies/ApologyPicker';
 import { LINES } from '../features/apologies/lines';
@@ -34,6 +36,8 @@ export class GameScene extends Phaser.Scene {
   private betweenWaves = false;
   private ended = false;
   picker = new ApologyPicker(LINES);
+  guilt!: GuiltMeter;
+  private desaturate?: unknown;
   bubble!: SpeechBubble;
 
   constructor() { super('Game'); }
@@ -43,6 +47,8 @@ export class GameScene extends Phaser.Scene {
     this.wave = 1;
     this.director = new WaveDirector(WAVES, this.mode.waveScale);
     this.runStats = new RunStats();
+    this.guilt = new GuiltMeter(this.mode.guilt);
+    this.desaturate = undefined;
     this.betweenWaves = false;
     this.ended = false;
   }
@@ -64,7 +70,15 @@ export class GameScene extends Phaser.Scene {
     bus.on('zombieHit', ({ wave }) => this.bubble.say(this.picker.pick('hit', wave), this.hero));
     bus.on('zombieKilled', ({ wave }) => this.bubble.say(this.picker.pick('kill', wave), this.hero));
 
-    this.scene.launch('Hud');
+    if (this.mode.guilt) {
+      bus.on('guiltChanged', ({ level }) => this.setDesaturated(level === 2));
+      this.time.addEvent({
+        delay: 1000, loop: true,
+        callback: () => { if (!this.betweenWaves) this.runStats.sampleGuilt(this.guilt.value); },
+      });
+    }
+
+    this.scene.launch('Hud', { mode: this.mode });
     const onVisibility = () => { if (document.hidden) this.hud().pauseGame(); };
     document.addEventListener('visibilitychange', onVisibility);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -121,8 +135,9 @@ export class GameScene extends Phaser.Scene {
     this.spawnTimer?.remove();
     bus.emit('runEnded', { outcome });
     const score = scoreRun(this.runStats, this.mode);
+    const newBest = saveIfBest(this.mode.id, score);
     this.scene.stop('Hud');
-    this.scene.start('Summary', { mode: this.mode, stats: this.runStats, outcome, score });
+    this.scene.start('Summary', { mode: this.mode, stats: this.runStats, outcome, score, newBest });
   }
 
   spawnZombie(kind: ZombieKind, speedMultiplier: number): Zombie | null {
@@ -151,12 +166,51 @@ export class GameScene extends Phaser.Scene {
     if (result === 'hit') {
       this.runStats.zombiesHurt++;
       bus.emit('zombieHit', { zombieId: zombie.zombieId, wave: this.wave });
+      this.afterGuilt(this.guilt.onHit(zombie.zombieId).breakdown);
     } else if (result === 'killed') {
       this.runStats.zombiesHurt++;
       this.runStats.zombiesKilled++;
       zombie.retire();
       this.director.onZombieKilled();
       bus.emit('zombieKilled', { zombieId: zombie.zombieId, wave: this.wave });
+      this.afterGuilt(this.guilt.onKill(zombie.zombieId).breakdown);
+    }
+  }
+
+  private emitGuilt(): void {
+    if (this.mode.guilt) bus.emit('guiltChanged', { guilt: this.guilt.value, level: this.guilt.level() });
+  }
+
+  private afterGuilt(breakdown: boolean): void {
+    this.emitGuilt();
+    if (!breakdown) return;
+    const now = this.time.now;
+    this.hero.frozenUntil = now + 2000;
+    this.hero.hurt(now, true);
+    bus.emit('heroHurt', { hearts: this.hero.hearts });
+    this.bubble.say(this.picker.pick('breakdown'), this.hero);
+  }
+
+  private tryApologize(now: number): void {
+    const { accepted, cleared } = this.guilt.apologize(now);
+    if (!accepted) return;
+    this.hero.frozenUntil = now + 500;
+    this.runStats.apologies++;
+    this.bubble.say(this.picker.pick('apology'), this.hero);
+    bus.emit('apologized', { cleared });
+    this.emitGuilt();
+  }
+
+  private setDesaturated(on: boolean): void {
+    const filters = this.cameras.main.filters;
+    if (!filters) return; // Canvas renderer: no filters, no greying.
+    if (on && !this.desaturate) {
+      const cm = filters.internal.addColorMatrix();
+      cm.colorMatrix.saturate(-0.4);
+      this.desaturate = cm;
+    } else if (!on && this.desaturate) {
+      filters.internal.remove(this.desaturate as Phaser.Filters.ColorMatrix);
+      this.desaturate = undefined;
     }
   }
 
@@ -178,8 +232,12 @@ export class GameScene extends Phaser.Scene {
     if (!this.betweenWaves && this.director.isWaveCleared()) this.onWaveCleared();
     const now = this.time.now;
     const body = this.hero.body as Phaser.Physics.Arcade.Body;
+    const apologize = this.controls.apologizePressed();
     if (this.hero.isFrozen(now)) {
       body.setVelocity(0, 0);
+    } else if (this.mode.guilt && apologize) {
+      body.setVelocity(0, 0);
+      this.tryApologize(now);
     } else {
       const m = this.controls.move();
       body.setVelocity(m.x * HERO.speed, m.y * HERO.speed);
@@ -194,6 +252,8 @@ export class GameScene extends Phaser.Scene {
   protected firePea(target: { x: number; y: number }): void {
     const pea = this.peas.get(this.hero.x, this.hero.y) as Pea | null;
     if (!pea) return;
-    pea.fire(this.hero, Phaser.Math.Angle.Between(this.hero.x, this.hero.y, target.x, target.y));
+    const wobble = Phaser.Math.DegToRad(this.guilt.wobbleDegrees());
+    const angle = Phaser.Math.Angle.Between(this.hero.x, this.hero.y, target.x, target.y);
+    pea.fire(this.hero, angle + Phaser.Math.FloatBetween(-wobble, wobble));
   }
 }

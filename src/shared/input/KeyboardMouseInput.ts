@@ -2,7 +2,9 @@ import Phaser from 'phaser';
 import type { InputSource, Vec } from './InputSource';
 
 export class KeyboardMouseInput implements InputSource {
-  private keys: Record<'up' | 'down' | 'left' | 'right' | 'w' | 'a' | 's' | 'd' | 'space', Phaser.Input.Keyboard.Key>;
+  private keys: Record<'up' | 'down' | 'left' | 'right' | 'w' | 'a' | 's' | 'd', Phaser.Input.Keyboard.Key>;
+  private apologyQueued = false;
+  private readonly onSpace = (e: KeyboardEvent) => { if (!e.repeat) this.apologyQueued = true; };
 
   constructor(private scene: Phaser.Scene) {
     const kb = scene.input.keyboard!;
@@ -10,8 +12,10 @@ export class KeyboardMouseInput implements InputSource {
     this.keys = {
       up: kb.addKey(K.UP), down: kb.addKey(K.DOWN), left: kb.addKey(K.LEFT), right: kb.addKey(K.RIGHT),
       w: kb.addKey(K.W), a: kb.addKey(K.A), s: kb.addKey(K.S), d: kb.addKey(K.D),
-      space: kb.addKey(K.SPACE),
     };
+    // An event, not JustDown: a quick tap whose up and down land in one frame still counts.
+    kb.addCapture(K.SPACE);
+    kb.on('keydown-SPACE', this.onSpace);
   }
 
   move(): Vec {
@@ -32,10 +36,13 @@ export class KeyboardMouseInput implements InputSource {
   }
 
   apologizePressed(): boolean {
-    return Phaser.Input.Keyboard.JustDown(this.keys.space);
+    const pressed = this.apologyQueued;
+    this.apologyQueued = false;
+    return pressed;
   }
 
   destroy(): void {
     Object.values(this.keys).forEach(key => this.scene.input.keyboard?.removeKey(key));
+    this.scene.input.keyboard?.off('keydown-SPACE', this.onSpace);
   }
 }
