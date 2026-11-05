@@ -22,6 +22,10 @@ npm run build && npm run e2e   # smoke test (Playwright)
 
 All lines live in `src/features/apologies/lines.ts`. Add an entry to the list, pick its kind (`hit`, `kill`, `apology`, `breakdown`, `summaryWin`, `summaryLose`), and give `hit` and `kill` lines a tier: 1 for waves 1–3 (polite), 2 for waves 4–7 (flustered), 3 for waves 8–10 (philosophical).
 
+## Credits
+
+Character art: [Top-down Shooter](https://www.kenney.nl/assets/top-down-shooter) by Kenney (CC0). License in `public/assets/kenney-topdown/License.txt`.
+
 ## Docs
 
 - Design: `docs/specs/2026-11-04-sorry-zombies-design.md`

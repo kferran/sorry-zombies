@@ -12,7 +12,8 @@ export class Hero extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
     this.setCollideWorldBounds(true);
-    this.setCircle(14, 2, 2);
+    // Kenney sprite is 49×43 and faces right; keep a round body around the torso.
+    this.setCircle(15, 4, 6);
   }
 
   isFrozen(now: number): boolean {

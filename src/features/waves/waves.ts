@@ -14,8 +14,8 @@ export const WAVES: WaveSpec[] = Array.from({ length: 10 }, (_, i) => {
     wave: n,
     count: 3 * n + 3,
     spawnIntervalMs: Math.max(400, 1500 - 110 * (n - 1)),
-    speedMultiplier: 1 + 0.05 * (n - 1),
-    joggerShare: n < 5 ? 0 : 0.2 + 0.04 * (n - 5),
+    speedMultiplier: 1 + 0.04 * (n - 1),
+    joggerShare: n < 5 ? 0 : 0.2 + 0.02 * (n - 5),
   };
 });
 

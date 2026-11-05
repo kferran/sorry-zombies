@@ -19,9 +19,9 @@ describe('WAVES', () => {
     expect(WAVES[0].count).toBe(6);
     expect(WAVES[9].count).toBe(33);
   });
-  it('speed rises 5% per wave', () => {
+  it('speed rises 4% per wave (balance pass; spec started at 5%)', () => {
     expect(WAVES[0].speedMultiplier).toBeCloseTo(1);
-    expect(WAVES[9].speedMultiplier).toBeCloseTo(1.45);
+    expect(WAVES[9].speedMultiplier).toBeCloseTo(1.36);
   });
   it('spawn interval shrinks but never below 400 ms', () => {
     expect(WAVES[0].spawnIntervalMs).toBe(1500);
@@ -39,19 +39,19 @@ describe('WaveDirector', () => {
     }
   });
 
-  it('wave 10 is 40% joggers', () => {
+  it('wave 10 is 30% joggers (balance pass; spec started at 40%)', () => {
     const d = new WaveDirector(WAVES, 1, seeded());
     d.startWave(10);
     const kinds = drain(d);
     expect(kinds).toHaveLength(33);
-    expect(kinds.filter(k => k === 'jogger')).toHaveLength(13);
+    expect(kinds.filter(k => k === 'jogger')).toHaveLength(10);
   });
 
   it('waveScale 0.8 scales count and speed', () => {
     const d = new WaveDirector(WAVES, 0.8, seeded());
     const spec = d.startWave(10);
     expect(spec.count).toBe(26);
-    expect(spec.speedMultiplier).toBeCloseTo(1.16);
+    expect(spec.speedMultiplier).toBeCloseTo(1.088);
     expect(drain(d)).toHaveLength(26);
   });
 

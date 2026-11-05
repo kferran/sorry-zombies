@@ -42,6 +42,10 @@ export class MenuScene extends Phaser.Scene {
     };
     toggle.on('pointerup', () => { pref = nextInputPref(pref); setInputPref(pref); render(); });
     render();
+
+    this.add.text(width / 2, 700, 'Art: Kenney.nl (CC0)', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#666666',
+    }).setOrigin(0.5);
   }
 
   startRun(modeId: ModeId): void {

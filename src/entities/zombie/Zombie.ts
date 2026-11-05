@@ -22,8 +22,11 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.speed = ZOMBIE_STATS[kind].speed * speedMultiplier;
     this.stunnedUntil = 0;
     this.setTexture(kind);
+    // Joggers reuse the zombie sprite: smaller and tinted lime.
+    if (kind === 'jogger') this.setTint(0xb6f36b).setScale(0.85);
+    else this.clearTint().setScale(1);
     this.enableBody(true, x, y, true, true);
-    this.setCircle(kind === 'jogger' ? 12 : 14, 2, 2);
+    this.setCircle(15, 2, 6);
   }
 
   /** Pushes the zombie away from `from`; it stops chasing briefly. */
@@ -36,6 +39,7 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   chase(target: { x: number; y: number }, now: number): void {
     if (!this.active || now < this.stunnedUntil) return;
     this.scene.physics.moveToObject(this, target, this.speed);
+    this.setRotation(Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y));
   }
 
   retire(): void {
