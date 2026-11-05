@@ -1,4 +1,4 @@
-import type { ZombieKind } from '../../entities/zombie/zombie.stats';
+import type { ZombieKind } from '../entities/zombie/zombie.stats';
 import type { WaveSpec } from './waves';
 
 export class WaveDirector {

@@ -1,6 +1,6 @@
 export type HitResult = 'hit' | 'killed' | 'ignored';
 
-export class ZombieHealth {
+export class Health {
   private remaining: number;
 
   constructor(hits: number) {

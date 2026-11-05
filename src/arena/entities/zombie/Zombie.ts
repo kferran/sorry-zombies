@@ -1,13 +1,13 @@
 import Phaser from 'phaser';
 import { ZOMBIE_STATS, type ZombieKind } from './zombie.stats';
-import { ZombieHealth } from './ZombieHealth';
+import { Health } from '../../../entities/health/Health';
 
 let nextId = 1;
 
 export class Zombie extends Phaser.Physics.Arcade.Sprite {
   zombieId = 0;
   kind: ZombieKind = 'shambler';
-  health = new ZombieHealth(ZOMBIE_STATS.shambler.hits);
+  health = new Health(ZOMBIE_STATS.shambler.hits);
   private speed = ZOMBIE_STATS.shambler.speed;
   private stunnedUntil = 0;
 
@@ -18,7 +18,7 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   spawn(kind: ZombieKind, x: number, y: number, speedMultiplier: number): void {
     this.zombieId = nextId++;
     this.kind = kind;
-    this.health = new ZombieHealth(ZOMBIE_STATS[kind].hits);
+    this.health = new Health(ZOMBIE_STATS[kind].hits);
     this.speed = ZOMBIE_STATS[kind].speed * speedMultiplier;
     this.stunnedUntil = 0;
     this.setTexture(kind);

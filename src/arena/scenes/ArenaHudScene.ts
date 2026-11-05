@@ -1,11 +1,11 @@
 import Phaser from 'phaser';
-import { bus } from '../shared/events';
+import { bus } from '../../shared/events';
 import { HERO } from '../entities/hero/hero.stats';
-import { MODES, type ModeConfig } from '../shared/modes';
-import { GuiltBar } from '../features/guilt/GuiltBar';
-import { viewportNeedsLandscape } from '../shared/orientation';
+import { MODES, type ModeConfig } from '../../shared/modes';
+import { GuiltBar } from '../../features/guilt/GuiltBar';
+import { viewportNeedsLandscape } from '../../shared/orientation';
 
-export class HudScene extends Phaser.Scene {
+export class ArenaHudScene extends Phaser.Scene {
   private hearts: Phaser.GameObjects.Image[] = [];
   private waveLabel!: Phaser.GameObjects.Text;
   private pauseOverlay?: Phaser.GameObjects.Container;
@@ -13,7 +13,7 @@ export class HudScene extends Phaser.Scene {
 
   private mode: ModeConfig = MODES.casual;
 
-  constructor() { super('Hud'); }
+  constructor() { super('ArenaHud'); }
 
   init(data: { mode?: ModeConfig }): void {
     this.mode = data.mode ?? MODES.casual;
@@ -47,8 +47,8 @@ export class HudScene extends Phaser.Scene {
   }
 
   pauseGame(message = 'Paused\n\nPress Esc or tap to resume'): void {
-    if (this.paused || !this.scene.isActive('Game')) return;
-    this.scene.pause('Game');
+    if (this.paused || !this.scene.isActive('ArenaGame')) return;
+    this.scene.pause('ArenaGame');
     const { width, height } = this.scale;
     const shade = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6).setInteractive();
     const label = this.add.text(width / 2, height / 2, message, {
@@ -68,7 +68,7 @@ export class HudScene extends Phaser.Scene {
     if (viewportNeedsLandscape()) return; // phone still in portrait: stay paused
     this.pauseOverlay?.destroy();
     this.pauseOverlay = undefined;
-    this.scene.resume('Game');
+    this.scene.resume('ArenaGame');
   }
 
   private drawHearts(count: number): void {

@@ -22,9 +22,15 @@ npm run build && npm run e2e   # smoke test (Playwright)
 
 All lines live in `src/features/apologies/lines.ts`. Add an entry to the list, pick its kind (`hit`, `kill`, `apology`, `breakdown`, `summaryWin`, `summaryLose`), and give `hit` and `kill` lines a tier: 1 for waves 1–3 (polite), 2 for waves 4–7 (flustered), 3 for waves 8–10 (philosophical).
 
+## Layout
+
+The original top-down arena now lives in `src/arena/` and is reached from the menu's "Bonus: The Arena" link. Nothing outside `src/app/main.ts` and `MenuScene` imports from it.
+
 ## Credits
 
-Character art: [Top-down Shooter](https://www.kenney.nl/assets/top-down-shooter) by Kenney (CC0). License in `public/assets/kenney-topdown/License.txt`.
+Side-scroller art: [GothicVania Cemetery](https://opengameart.org/) by ansimuz (CC0), in `public/assets/gothicvania-cemetery/` (music not included).
+
+Arena character art: [Top-down Shooter](https://www.kenney.nl/assets/top-down-shooter) by Kenney (CC0). License in `public/assets/kenney-topdown/License.txt`.
 
 ## Docs
 

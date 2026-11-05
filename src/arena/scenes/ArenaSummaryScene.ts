@@ -1,10 +1,10 @@
 import Phaser from 'phaser';
-import type { ModeConfig } from '../shared/modes';
-import type { RunStats } from '../features/scoring/Scoring';
-import { Button } from '../shared/ui/Button';
-import { ApologyPicker } from '../features/apologies/ApologyPicker';
-import { LINES } from '../features/apologies/lines';
-import { gradeFor } from '../features/scoring/Scoring';
+import type { ModeConfig } from '../../shared/modes';
+import type { RunStats } from '../../features/scoring/Scoring';
+import { Button } from '../../shared/ui/Button';
+import { ApologyPicker } from '../../features/apologies/ApologyPicker';
+import { LINES } from '../../features/apologies/lines';
+import { gradeFor } from '../../features/scoring/Scoring';
 
 export type SummaryData = {
   mode: ModeConfig;
@@ -14,10 +14,10 @@ export type SummaryData = {
   newBest?: boolean;
 };
 
-export class SummaryScene extends Phaser.Scene {
+export class ArenaSummaryScene extends Phaser.Scene {
   protected summary!: SummaryData;
 
-  constructor() { super('Summary'); }
+  constructor() { super('ArenaSummary'); }
 
   init(data: SummaryData): void {
     this.summary = data;

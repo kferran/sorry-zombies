@@ -1,32 +1,32 @@
 import Phaser from 'phaser';
-import type { ModeConfig } from '../shared/modes';
-import { MODES } from '../shared/modes';
-import { bus } from '../shared/events';
-import type { InputSource } from '../shared/input/InputSource';
-import { KeyboardMouseInput } from '../shared/input/KeyboardMouseInput';
-import { TouchInput } from '../shared/input/TouchInput';
-import { chooseInput, getInputPref } from '../shared/input/selectInput';
-import { viewportNeedsLandscape } from '../shared/orientation';
+import type { ModeConfig } from '../../shared/modes';
+import { MODES } from '../../shared/modes';
+import { bus } from '../../shared/events';
+import type { InputSource } from '../../shared/input/InputSource';
+import { KeyboardMouseInput } from '../../shared/input/KeyboardMouseInput';
+import { TouchInput } from '../../shared/input/TouchInput';
+import { chooseInput, getInputPref } from '../../shared/input/selectInput';
+import { viewportNeedsLandscape } from '../../shared/orientation';
 import { Hero } from '../entities/hero/Hero';
 import { HERO } from '../entities/hero/hero.stats';
 import { Pea } from '../entities/pea/Pea';
 import { Zombie } from '../entities/zombie/Zombie';
 import type { ZombieKind } from '../entities/zombie/zombie.stats';
-import { WAVES, WAVE_SUBTITLES, type WaveSpec } from '../features/waves/waves';
-import { WaveDirector } from '../features/waves/WaveDirector';
-import { WaveBanner } from '../features/waves/WaveBanner';
-import { RunStats, scoreRun } from '../features/scoring/Scoring';
-import { saveIfBest } from '../features/scoring/bestScores';
-import { GuiltMeter } from '../features/guilt/GuiltMeter';
-import type { HudScene } from './HudScene';
-import { ApologyPicker } from '../features/apologies/ApologyPicker';
-import { LINES } from '../features/apologies/lines';
-import { SpeechBubble } from '../features/apologies/SpeechBubble';
+import { WAVES, WAVE_SUBTITLES, type WaveSpec } from '../waves/waves';
+import { WaveDirector } from '../waves/WaveDirector';
+import { WaveBanner } from '../waves/WaveBanner';
+import { RunStats, scoreRun } from '../../features/scoring/Scoring';
+import { saveIfBest } from '../../features/scoring/bestScores';
+import { GuiltMeter } from '../../features/guilt/GuiltMeter';
+import type { ArenaHudScene } from './ArenaHudScene';
+import { ApologyPicker } from '../../features/apologies/ApologyPicker';
+import { LINES } from '../../features/apologies/lines';
+import { SpeechBubble } from '../../features/apologies/SpeechBubble';
 
 const BREATHER_MS = 3000;
 const MAX_ZOMBIES = 80;
 
-export class GameScene extends Phaser.Scene {
+export class ArenaGameScene extends Phaser.Scene {
   mode: ModeConfig = MODES.casual;
   hero!: Hero;
   zombies!: Phaser.Physics.Arcade.Group;
@@ -43,7 +43,7 @@ export class GameScene extends Phaser.Scene {
   private desaturate?: unknown;
   bubble!: SpeechBubble;
 
-  constructor() { super('Game'); }
+  constructor() { super('ArenaGame'); }
 
   init(data: { mode?: ModeConfig }): void {
     this.mode = data.mode ?? MODES.casual;
@@ -83,7 +83,7 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
-    this.scene.launch('Hud', { mode: this.mode });
+    this.scene.launch('ArenaHud', { mode: this.mode });
     const onVisibility = () => { if (document.hidden) this.hud().pauseGame(); };
     document.addEventListener('visibilitychange', onVisibility);
     const resetInput = () => this.controls.reset();
@@ -108,8 +108,8 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(0, () => this.startWave(1));
   }
 
-  private hud(): HudScene {
-    return this.scene.get('Hud') as HudScene;
+  private hud(): ArenaHudScene {
+    return this.scene.get('ArenaHud') as ArenaHudScene;
   }
 
   /** Landscape only on touch screens: a portrait phone pauses behind a "please rotate" overlay. */
@@ -162,9 +162,9 @@ export class GameScene extends Phaser.Scene {
     this.spawnTimer?.remove();
     bus.emit('runEnded', { outcome });
     const score = scoreRun(this.runStats, this.mode);
-    const newBest = saveIfBest(this.mode.id, score);
-    this.scene.stop('Hud');
-    this.scene.start('Summary', { mode: this.mode, stats: this.runStats, outcome, score, newBest });
+    const newBest = saveIfBest('arena', this.mode.id, score);
+    this.scene.stop('ArenaHud');
+    this.scene.start('ArenaSummary', { mode: this.mode, stats: this.runStats, outcome, score, newBest });
   }
 
   spawnZombie(kind: ZombieKind, speedMultiplier: number): Zombie | null {
