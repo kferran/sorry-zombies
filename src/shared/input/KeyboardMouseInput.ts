@@ -41,6 +41,10 @@ export class KeyboardMouseInput implements InputSource {
     return pressed;
   }
 
+  reset(): void {
+    this.apologyQueued = false;
+  }
+
   destroy(): void {
     Object.values(this.keys).forEach(key => this.scene.input.keyboard?.removeKey(key));
     this.scene.input.keyboard?.off('keydown-SPACE', this.onSpace);

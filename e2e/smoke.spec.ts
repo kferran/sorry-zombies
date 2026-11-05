@@ -9,6 +9,11 @@ for (const modeId of ['casual', 'conscience'] as const) {
     await page.waitForFunction(() => (window as any).__SORRY__?.scene.isActive('Menu'));
     await page.evaluate(id => (window as any).__SORRY__.scene.getScene('Menu').startRun(id), modeId);
     await page.waitForFunction(() => (window as any).__SORRY__.scene.isActive('Game'));
+    // Let the HUD and the first wave start before judging: errors there would break the live game too.
+    await page.waitForFunction(() => (window as any).__SORRY__.scene.isActive('Hud'));
+    await page.waitForFunction(() => (window as any).__SORRY__.scene.getScene('Game').wave === 1
+      && (window as any).__SORRY__.scene.getScene('Game').director.currentWave === 1);
+    await page.waitForTimeout(500);
     expect(errors).toEqual([]);
   });
 }

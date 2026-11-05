@@ -8,5 +8,7 @@ export interface InputSource {
   firing(): boolean;
   /** True once per press. */
   apologizePressed(): boolean;
+  /** Drop held state; called when the game pauses or resumes, since input events stop while paused. */
+  reset(): void;
   destroy(): void;
 }

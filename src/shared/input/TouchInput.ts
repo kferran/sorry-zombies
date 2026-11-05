@@ -1,27 +1,17 @@
 import Phaser from 'phaser';
 import type { InputSource, Vec } from './InputSource';
+import { STICK_RADIUS, TouchSticks } from './touchSticks';
 
-const STICK_RADIUS = 60;
-const DEAD_ZONE = 0.15;
-const AIM_MIN_DRAG = 12;
-
-/**
- * Two-thumb touch controls: a floating joystick on the left half, drag-to-aim with
- * auto-fire on the right half, and an optional "Sorry!" button.
- */
+/** Phaser wiring and visuals for TouchSticks, plus the optional "Sorry!" button. */
 export class TouchInput implements InputSource {
-  private moveId: number | null = null;
-  private moveOrigin = new Phaser.Math.Vector2();
-  private moveVec: Vec = { x: 0, y: 0 };
-  private aimId: number | null = null;
-  private aimOrigin = new Phaser.Math.Vector2();
-  private aimDir: Vec = { x: 1, y: 0 };
+  private sticks: TouchSticks;
   private apologyQueued = false;
   private stickBase: Phaser.GameObjects.Arc;
   private stickKnob: Phaser.GameObjects.Arc;
   private sorry?: Phaser.GameObjects.Container;
 
   constructor(private scene: Phaser.Scene, showSorryButton: boolean) {
+    this.sticks = new TouchSticks(scene.scale.width);
     this.stickBase = scene.add.circle(0, 0, STICK_RADIUS, 0xffffff, 0.12).setStrokeStyle(2, 0xffffff, 0.4).setDepth(950).setVisible(false);
     this.stickKnob = scene.add.circle(0, 0, 26, 0xffffff, 0.35).setDepth(951).setVisible(false);
     if (showSorryButton) this.sorry = this.makeSorryButton();
@@ -32,21 +22,28 @@ export class TouchInput implements InputSource {
   }
 
   move(): Vec {
-    return this.moveVec;
+    return this.sticks.moveVec;
   }
 
   aim(heroPos: Vec): Vec | null {
-    return { x: heroPos.x + this.aimDir.x * 100, y: heroPos.y + this.aimDir.y * 100 };
+    const d = this.sticks.aimDir;
+    return { x: heroPos.x + d.x * 100, y: heroPos.y + d.y * 100 };
   }
 
   firing(): boolean {
-    return this.aimId !== null;
+    return this.sticks.firing;
   }
 
   apologizePressed(): boolean {
     const pressed = this.apologyQueued;
     this.apologyQueued = false;
     return pressed;
+  }
+
+  reset(): void {
+    this.sticks.reset();
+    this.apologyQueued = false;
+    this.drawStick();
   }
 
   destroy(): void {
@@ -78,45 +75,27 @@ export class TouchInput implements InputSource {
       this.apologyQueued = true;
       return;
     }
-    if (p.x < this.scene.scale.width / 2) {
-      if (this.moveId !== null) return;
-      this.moveId = p.id;
-      this.moveOrigin.set(p.x, p.y);
-      this.stickBase.setPosition(p.x, p.y).setVisible(true);
-      this.stickKnob.setPosition(p.x, p.y).setVisible(true);
-    } else if (this.aimId === null) {
-      this.aimId = p.id;
-      this.aimOrigin.set(p.x, p.y);
-    }
+    this.sticks.down(p.id, p.x, p.y);
+    this.drawStick();
   }
 
   private onMove(p: Phaser.Input.Pointer): void {
-    if (p.id === this.moveId) {
-      const dx = p.x - this.moveOrigin.x;
-      const dy = p.y - this.moveOrigin.y;
-      const len = Math.hypot(dx, dy);
-      const clamped = Math.min(len, STICK_RADIUS);
-      const nx = len > 0 ? dx / len : 0;
-      const ny = len > 0 ? dy / len : 0;
-      this.stickKnob.setPosition(this.moveOrigin.x + nx * clamped, this.moveOrigin.y + ny * clamped);
-      const strength = clamped / STICK_RADIUS;
-      this.moveVec = strength < DEAD_ZONE ? { x: 0, y: 0 } : { x: nx * strength, y: ny * strength };
-    } else if (p.id === this.aimId) {
-      const dx = p.x - this.aimOrigin.x;
-      const dy = p.y - this.aimOrigin.y;
-      const len = Math.hypot(dx, dy);
-      if (len >= AIM_MIN_DRAG) this.aimDir = { x: dx / len, y: dy / len };
-    }
+    this.sticks.move(p.id, p.x, p.y);
+    this.drawStick();
   }
 
   private onUp(p: Phaser.Input.Pointer): void {
-    if (p.id === this.moveId) {
-      this.moveId = null;
-      this.moveVec = { x: 0, y: 0 };
-      this.stickBase.setVisible(false);
-      this.stickKnob.setVisible(false);
-    } else if (p.id === this.aimId) {
-      this.aimId = null;
+    this.sticks.up(p.id);
+    this.drawStick();
+  }
+
+  private drawStick(): void {
+    const s = this.sticks.stick;
+    this.stickBase.setVisible(!!s);
+    this.stickKnob.setVisible(!!s);
+    if (s) {
+      this.stickBase.setPosition(s.origin.x, s.origin.y);
+      this.stickKnob.setPosition(s.knob.x, s.knob.y);
     }
   }
 }

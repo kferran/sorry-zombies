@@ -6,6 +6,7 @@ import type { InputSource } from '../shared/input/InputSource';
 import { KeyboardMouseInput } from '../shared/input/KeyboardMouseInput';
 import { TouchInput } from '../shared/input/TouchInput';
 import { chooseInput, getInputPref } from '../shared/input/selectInput';
+import { viewportNeedsLandscape } from '../shared/orientation';
 import { Hero } from '../entities/hero/Hero';
 import { HERO } from '../entities/hero/hero.stats';
 import { Pea } from '../entities/pea/Pea';
@@ -85,12 +86,17 @@ export class GameScene extends Phaser.Scene {
     this.scene.launch('Hud', { mode: this.mode });
     const onVisibility = () => { if (document.hidden) this.hud().pauseGame(); };
     document.addEventListener('visibilitychange', onVisibility);
+    const resetInput = () => this.controls.reset();
+    this.events.on(Phaser.Scenes.Events.PAUSE, resetInput);
+    this.events.on(Phaser.Scenes.Events.RESUME, resetInput);
     const onResize = () => this.checkOrientation();
     this.scale.on(Phaser.Scale.Events.RESIZE, onResize);
     this.scale.on(Phaser.Scale.Events.ORIENTATION_CHANGE, onResize);
     this.time.delayedCall(0, onResize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.controls.destroy();
+      this.events.off(Phaser.Scenes.Events.PAUSE, resetInput);
+      this.events.off(Phaser.Scenes.Events.RESUME, resetInput);
       this.bubble.destroy();
       document.removeEventListener('visibilitychange', onVisibility);
       this.scale.off(Phaser.Scale.Events.RESIZE, onResize);
@@ -106,10 +112,10 @@ export class GameScene extends Phaser.Scene {
     return this.scene.get('Hud') as HudScene;
   }
 
-  /** Landscape only: a portrait phone pauses behind a "please rotate" overlay. */
+  /** Landscape only on touch screens: a portrait phone pauses behind a "please rotate" overlay. */
   private checkOrientation(): void {
     if (this.ended) return;
-    if (window.innerHeight > window.innerWidth) {
+    if (viewportNeedsLandscape()) {
       if (this.hud().paused) this.hud().setPauseMessage('Please rotate your phone\nto landscape');
       else this.hud().pauseGame('Please rotate your phone\nto landscape');
     } else if (this.hud().paused) {

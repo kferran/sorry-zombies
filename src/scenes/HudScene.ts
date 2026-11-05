@@ -3,6 +3,7 @@ import { bus } from '../shared/events';
 import { HERO } from '../entities/hero/hero.stats';
 import { MODES, type ModeConfig } from '../shared/modes';
 import { GuiltBar } from '../features/guilt/GuiltBar';
+import { viewportNeedsLandscape } from '../shared/orientation';
 
 export class HudScene extends Phaser.Scene {
   private hearts: Phaser.GameObjects.Image[] = [];
@@ -64,7 +65,7 @@ export class HudScene extends Phaser.Scene {
 
   resumeGame(): void {
     if (!this.paused) return;
-    if (window.innerHeight > window.innerWidth) return; // still portrait: stay paused
+    if (viewportNeedsLandscape()) return; // phone still in portrait: stay paused
     this.pauseOverlay?.destroy();
     this.pauseOverlay = undefined;
     this.scene.resume('Game');
