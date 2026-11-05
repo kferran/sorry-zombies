@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import type { ModeConfig } from '../shared/modes';
 import type { RunStats } from '../features/scoring/Scoring';
 import { Button } from '../shared/ui/Button';
+import { ApologyPicker } from '../features/apologies/ApologyPicker';
+import { LINES } from '../features/apologies/lines';
 
 export type SummaryData = {
   mode: ModeConfig;
@@ -33,6 +35,8 @@ export class SummaryScene extends Phaser.Scene {
       `Score           ${score}`,
     ];
     this.add.text(width / 2, 300, rows.join('\n'), { ...style, fontSize: '26px', lineSpacing: 10 }).setOrigin(0.5);
+    const closing = new ApologyPicker(LINES).pick(outcome === 'win' ? 'summaryWin' : 'summaryLose');
+    this.add.text(width / 2, 500, closing, { ...style, fontSize: '24px', color: '#facc15', wordWrap: { width: 900 }, align: 'center' }).setOrigin(0.5);
     Button(this, width / 2, 620, 'Play again', () => this.scene.start('Menu'));
   }
 }

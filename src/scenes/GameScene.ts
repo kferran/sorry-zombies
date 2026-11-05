@@ -14,6 +14,9 @@ import { WaveDirector } from '../features/waves/WaveDirector';
 import { WaveBanner } from '../features/waves/WaveBanner';
 import { RunStats, scoreRun } from '../features/scoring/Scoring';
 import type { HudScene } from './HudScene';
+import { ApologyPicker } from '../features/apologies/ApologyPicker';
+import { LINES } from '../features/apologies/lines';
+import { SpeechBubble } from '../features/apologies/SpeechBubble';
 
 const BREATHER_MS = 3000;
 const MAX_ZOMBIES = 80;
@@ -30,6 +33,8 @@ export class GameScene extends Phaser.Scene {
   private spawnTimer?: Phaser.Time.TimerEvent;
   private betweenWaves = false;
   private ended = false;
+  picker = new ApologyPicker(LINES);
+  bubble!: SpeechBubble;
 
   constructor() { super('Game'); }
 
@@ -55,11 +60,16 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.peas, this.zombies, (p, z) => this.onPeaHitsZombie(p as Pea, z as Zombie));
     this.physics.add.overlap(this.hero, this.zombies, (_h, z) => this.onZombieTouchesHero(z as Zombie));
 
+    this.bubble = new SpeechBubble(this);
+    bus.on('zombieHit', ({ wave }) => this.bubble.say(this.picker.pick('hit', wave), this.hero));
+    bus.on('zombieKilled', ({ wave }) => this.bubble.say(this.picker.pick('kill', wave), this.hero));
+
     this.scene.launch('Hud');
     const onVisibility = () => { if (document.hidden) this.hud().pauseGame(); };
     document.addEventListener('visibilitychange', onVisibility);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.controls.destroy();
+      this.bubble.destroy();
       document.removeEventListener('visibilitychange', onVisibility);
       bus.clear();
     });
