@@ -28,6 +28,11 @@ export class MenuScene extends Phaser.Scene {
         }).setOrigin(0.5);
       }
     });
+    // SPIKE: side-scroller pacing test.
+    this.add.text(width / 2, 500, '▶ Try the side-scroller (spike)', {
+      fontFamily: 'monospace', fontSize: '20px', color: '#facc15',
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true }).on('pointerup', () => this.scene.start('SideScroll'));
+
     const hint = this.add.text(width / 2, 640, '', {
       fontFamily: 'monospace', fontSize: '18px', color: '#aaaaaa',
     }).setOrigin(0.5);

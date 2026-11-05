@@ -43,10 +43,11 @@ export class SpeechBubble {
   /** Sits above the hero, or below when the top of the arena is too close. */
   private reposition(): void {
     if (!this.follow || !this.container.visible) return;
-    const { width } = this.scene.scale;
+    // Clamp to what the camera shows, so it also works in a scrolling level.
+    const view = this.scene.cameras.main.worldView;
     const w = this.container.width;
     const h = this.container.height;
-    const x = Phaser.Math.Clamp(this.follow.x, w / 2 + MARGIN, width - w / 2 - MARGIN);
+    const x = Phaser.Math.Clamp(this.follow.x, view.x + w / 2 + MARGIN, view.x + view.width - w / 2 - MARGIN);
     const below = this.follow.y - GAP - h < TOP_RESERVED;
     if (this.dirty || below !== this.below) this.draw(w, h, below);
     this.container.setPosition(x, below ? this.follow.y + GAP : this.follow.y - GAP);

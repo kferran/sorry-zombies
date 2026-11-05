@@ -5,6 +5,7 @@ import { GameScene } from '../scenes/GameScene';
 import { HudScene } from '../scenes/HudScene';
 import { SummaryScene } from '../scenes/SummaryScene';
 import { bus } from '../shared/events';
+import { SideScrollScene } from '../spike/SideScrollScene';
 
 export const GAME_WIDTH = 1280;
 export const GAME_HEIGHT = 720;
@@ -18,7 +19,7 @@ const game = new Phaser.Game({
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   physics: { default: 'arcade', arcade: { debug: false } },
   input: { activePointers: 3 },
-  scene: [BootScene, MenuScene, GameScene, HudScene, SummaryScene],
+  scene: [BootScene, MenuScene, GameScene, HudScene, SummaryScene, SideScrollScene],
 });
 
 // Debug handles for the smoke test and play checks.
