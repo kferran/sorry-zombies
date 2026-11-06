@@ -45,6 +45,38 @@ export class BootScene extends Phaser.Scene {
       .fillTriangle(0, 7, 18, 7, 9, 17)
       .generateTexture('heart', 18, 18);
     g.destroy();
+    this.dropAtlasPivots();
+    this.createHeroAnims();
     this.scene.start('Menu');
+  }
+
+  /**
+   * The pack's atlases give every frame a 0.5/0.5 "pivot", which Phaser applies as the origin on each
+   * animation frame, overriding a sprite's own setOrigin (the hero stands on his feet: origin y 1).
+   * 0.5/0.5 is the default origin anyway, so dropping the pivots changes nothing else.
+   */
+  private dropAtlasPivots(): void {
+    for (const key of ['gv-atlas', 'gv-props']) {
+      const texture = this.textures.get(key);
+      texture.getFrameNames().forEach(name => { texture.get(name).customPivot = false; });
+    }
+  }
+
+  /** Global animations, created once (Boot can run again after a load error refresh). */
+  private createHeroAnims(): void {
+    const frames = (name: string, count: number) =>
+      this.anims.generateFrameNames('gv-atlas', { prefix: `hero-${name}-`, start: 1, end: count });
+    const defs: Phaser.Types.Animations.Animation[] = [
+      { key: 'hero-idle', frames: frames('idle', 4), frameRate: 6, repeat: -1 },
+      { key: 'hero-run', frames: frames('run', 6), frameRate: 12, repeat: -1 },
+      { key: 'hero-jump', frames: frames('jump', 4), frameRate: 10, repeat: 0 },
+      // 5 frames over the 450 ms swing cooldown: 90 ms a frame, live on frames 3–5.
+      { key: 'hero-attack', frames: frames('attack', 5), duration: 450, repeat: 0 },
+      { key: 'hero-crouch', frames: [{ key: 'gv-atlas', frame: 'hero-crouch' }], frameRate: 1, repeat: 0 },
+      { key: 'hero-hurt', frames: [{ key: 'gv-atlas', frame: 'hero-hurt' }], frameRate: 1, repeat: 0 },
+    ];
+    for (const def of defs) {
+      if (!this.anims.exists(def.key!)) this.anims.create(def);
+    }
   }
 }

@@ -13,6 +13,7 @@ for (const modeId of ['casual', 'conscience'] as const) {
     await openMenu(page, errors);
     await page.evaluate(id => (window as any).__SORRY__.scene.getScene('Menu').startRun(id), modeId);
     await page.waitForFunction(() => (window as any).__SORRY__.scene.isActive('Level'));
+    await page.waitForFunction(() => (window as any).__SORRY__.scene.isActive('Overlay'));
     await page.waitForTimeout(500);
     expect(errors).toEqual([]);
   });

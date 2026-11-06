@@ -4,6 +4,8 @@ export type GameEventMap = {
   zombieHit: { zombieId: number; wave: number };
   zombieKilled: { zombieId: number; wave: number };
   heroHurt: { hearts: number };
+  /** Side-scroller: the hero's hearts changed (start of a stage, hurt, refill). */
+  heartsChanged: { hearts: number };
   apologized: { cleared: number };
   guiltChanged: { guilt: number; level: 0 | 1 | 2 };
   waveStarted: { wave: number };

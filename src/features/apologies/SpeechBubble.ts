@@ -8,8 +8,13 @@ const TOP_RESERVED = 52;
 const GAP = 26;
 
 type Point = { x: number; y: number };
+export type Vec = Point;
 
-/** One bubble at a time above the hero; a new line replaces the current one. */
+/**
+ * One bubble at a time above the hero; a new line replaces the current one.
+ * With `project`, the followed point is in another camera's world (the side-scroller's zoomed
+ * Level) and is mapped to this scene's screen each frame, just before this scene draws.
+ */
 export class SpeechBubble {
   private container: Phaser.GameObjects.Container;
   private bg: Phaser.GameObjects.Graphics;
@@ -19,14 +24,18 @@ export class SpeechBubble {
   private below = false;
   private dirty = true;
 
-  constructor(private scene: Phaser.Scene) {
+  private readonly frameEvent: string;
+
+  constructor(private scene: Phaser.Scene, private project?: (p: Vec) => Vec) {
     this.bg = scene.add.graphics();
     this.text = scene.add.text(0, 0, '', {
       fontFamily: 'monospace', fontSize: '16px', color: '#111111',
       wordWrap: { width: MAX_WIDTH - PAD * 2 }, align: 'center',
     }).setOrigin(0.5, 1);
     this.container = scene.add.container(0, 0, [this.bg, this.text]).setDepth(900).setVisible(false);
-    scene.events.on(Phaser.Scenes.Events.UPDATE, this.reposition, this);
+    // A projected point depends on the other camera, which only settles when that scene renders.
+    this.frameEvent = project ? Phaser.Scenes.Events.PRE_RENDER : Phaser.Scenes.Events.UPDATE;
+    scene.events.on(this.frameEvent, this.reposition, this);
   }
 
   say(text: string, follow: Point): void {
@@ -43,13 +52,14 @@ export class SpeechBubble {
   /** Sits above the hero, or below when the top of the arena is too close. */
   private reposition(): void {
     if (!this.follow || !this.container.visible) return;
+    const at = this.project ? this.project(this.follow) : this.follow;
     const { width } = this.scene.scale;
     const w = this.container.width;
     const h = this.container.height;
-    const x = Phaser.Math.Clamp(this.follow.x, w / 2 + MARGIN, width - w / 2 - MARGIN);
-    const below = this.follow.y - GAP - h < TOP_RESERVED;
+    const x = Phaser.Math.Clamp(at.x, w / 2 + MARGIN, width - w / 2 - MARGIN);
+    const below = at.y - GAP - h < TOP_RESERVED;
     if (this.dirty || below !== this.below) this.draw(w, h, below);
-    this.container.setPosition(x, below ? this.follow.y + GAP : this.follow.y - GAP);
+    this.container.setPosition(x, below ? at.y + GAP : at.y - GAP);
   }
 
   private draw(w: number, h: number, below: boolean): void {
@@ -66,7 +76,7 @@ export class SpeechBubble {
   }
 
   destroy(): void {
-    this.scene.events.off(Phaser.Scenes.Events.UPDATE, this.reposition, this);
+    this.scene.events.off(this.frameEvent, this.reposition, this);
     this.hideTimer?.remove();
     this.container.destroy();
   }

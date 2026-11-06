@@ -13,4 +13,4 @@ function stub(key: string): typeof Phaser.Scene {
   };
 }
 
-export const STUB_SCENES = ['Level', 'Boss', 'LevelCard', 'Overlay'].map(stub);
+export const STUB_SCENES = ['Boss', 'LevelCard'].map(stub);
