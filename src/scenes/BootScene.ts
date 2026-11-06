@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { SKELETON_BODY } from '../entities/enemy/enemy.stats';
 
 const ART = 'assets/kenney-topdown';
 const GV = 'assets/gothicvania-cemetery';
@@ -47,6 +48,7 @@ export class BootScene extends Phaser.Scene {
     g.destroy();
     this.dropAtlasPivots();
     this.createHeroAnims();
+    this.createEnemyAnims();
     this.scene.start('Menu');
   }
 
@@ -75,6 +77,21 @@ export class BootScene extends Phaser.Scene {
       { key: 'hero-crouch', frames: [{ key: 'gv-atlas', frame: 'hero-crouch' }], frameRate: 1, repeat: 0 },
       { key: 'hero-hurt', frames: [{ key: 'gv-atlas', frame: 'hero-hurt' }], frameRate: 1, repeat: 0 },
     ];
+    this.createAnims(defs);
+  }
+
+  private createEnemyAnims(): void {
+    const frames = (prefix: string, count: number) =>
+      this.anims.generateFrameNames('gv-atlas', { prefix: `${prefix}-`, start: 1, end: count });
+    this.createAnims([
+      // SKELETON_BODY.riseMs: the skeleton can't move or hurt until the rise is over.
+      { key: 'skeleton-rise', frames: frames('skeleton-rise-clothed', 6), duration: SKELETON_BODY.riseMs, repeat: 0 },
+      { key: 'skeleton-walk', frames: frames('skeleton-clothed', 8), frameRate: 8, repeat: -1 },
+      { key: 'enemy-death', frames: frames('enemy-death', 5), frameRate: 12, repeat: 0 },
+    ]);
+  }
+
+  private createAnims(defs: Phaser.Types.Animations.Animation[]): void {
     for (const def of defs) {
       if (!this.anims.exists(def.key!)) this.anims.create(def);
     }

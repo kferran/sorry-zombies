@@ -6,10 +6,17 @@ import { Button } from '../shared/ui/Button';
 import type { PlatformInput } from '../shared/input/PlatformInput';
 import { KeyboardPlatformInput } from '../shared/input/KeyboardPlatformInput';
 import { LevelError, parseLevel, type LevelData } from '../features/levels/LevelLoader';
-import { SwingRules } from '../features/combat/SwingRules';
+import { swingLineKind } from '../features/combat/SwingHits';
+import { ApologyPicker, type LineKind } from '../features/apologies/ApologyPicker';
+import { LINES } from '../features/apologies/lines';
 import { Hero } from '../entities/hero/Hero';
-import { GRAVITY, HERO, WHIP } from '../entities/hero/hero.stats';
+import { GRAVITY, HERO } from '../entities/hero/hero.stats';
+import type { Enemy } from '../entities/enemy/Enemy';
+import { WAIT, waitMsFor } from '../entities/enemy/enemy.stats';
 import { STAGES } from './run/stages';
+import { HeroCombat } from './level/HeroCombat';
+import { LevelEnemies } from './level/LevelEnemies';
+import { LevelHitStop } from './level/LevelHitStop';
 import type { OverlayScene } from './OverlayScene';
 
 /** Until RunState lands (Task 8), a run is just the mode and the hearts left. */
@@ -27,6 +34,8 @@ export type LevelInit = {
 const ZOOM = 3;
 /** A jump pressed this long before landing still happens. */
 const JUMP_BUFFER_MS = 100;
+/** A rise line waits while a hit apology this recent may still be showing. */
+const HIT_LINE_HOLD_MS = 800;
 /** Sky colour at the top of bg-moon, shown above the backgrounds (which are 224 px tall, maps 240). */
 const SKY = '#000022';
 const PARALLAX: [key: string, factor: number][] = [
@@ -41,17 +50,16 @@ export class LevelScene extends Phaser.Scene {
   mapKey = STAGES[0].key;
   level?: LevelData;
   hero?: Hero;
-  /** The whip's reach (24×20 world px in front of the hero); its body is enabled only on live frames. */
-  whipHitbox!: Phaser.GameObjects.Zone;
-  /** Number of swings started (play checks). */
-  swingCount = 0;
+  combat?: HeroCombat;
+  enemies?: LevelEnemies;
   /** Live point above the hero's head, in world coordinates; bubbles follow it. */
   readonly heroHead: Point = headOf(this);
   brokenMessage?: string;
 
   private controls?: PlatformInput;
-  private swing = new SwingRules();
-  private stopShort = false;
+  private picker = new ApologyPicker(LINES);
+  private hitStop = this.newHitStop();
+  private hitLineAt = -Infinity;
   private jumpAt = -Infinity;
   private elapsed = 0;
 
@@ -65,9 +73,10 @@ export class LevelScene extends Phaser.Scene {
     this.hero = undefined;
     this.controls = undefined;
     this.brokenMessage = undefined;
-    this.swing = new SwingRules();
-    this.swingCount = 0;
-    this.stopShort = false;
+    this.combat = undefined;
+    this.enemies = undefined;
+    this.hitStop = this.newHitStop();
+    this.hitLineAt = -Infinity;
     this.jumpAt = -Infinity;
     this.elapsed = 0;
   }
@@ -91,6 +100,7 @@ export class LevelScene extends Phaser.Scene {
     }
     const level = this.level!;
 
+    this.physics.resume(); // in case the last run ended mid hit-stop
     this.physics.world.gravity.y = GRAVITY;
     this.physics.world.setBounds(0, 0, level.widthPx, level.heightPx);
 
@@ -98,12 +108,8 @@ export class LevelScene extends Phaser.Scene {
     this.hero = hero;
     this.physics.add.collider(hero, ground);
 
-    this.whipHitbox = this.add.zone(0, 0, WHIP.width, WHIP.height);
-    this.physics.add.existing(this.whipHitbox);
-    const whipBody = this.whipHitbox.body as Phaser.Physics.Arcade.Body;
-    whipBody.setAllowGravity(false).setImmovable(true);
-    whipBody.moves = false;
-    whipBody.enable = false;
+    this.combat = new HeroCombat(this, hero);
+    this.enemies = new LevelEnemies(this, ground, level.spawns, this.stageIndex);
 
     const cam = this.cameras.main;
     cam.setBackgroundColor(SKY);
@@ -135,25 +141,43 @@ export class LevelScene extends Phaser.Scene {
     return this.scene.get('Overlay') as OverlayScene;
   }
 
-  /** True while the swing is on a live frame (3–5); Task 7 overlaps `whipHitbox` against enemies. */
+  /** The whip's reach (24×20 world px in front of the hero); its body is enabled only on live frames. */
+  get whipHitbox(): Phaser.GameObjects.Zone | undefined {
+    return this.combat?.hitbox;
+  }
+
+  /** True while the swing is on a live frame (3–5). */
   get whipActive(): boolean {
-    return (this.whipHitbox?.body as Phaser.Physics.Arcade.Body | undefined)?.enable ?? false;
+    return this.combat?.active ?? false;
+  }
+
+  /** Number of swings started (play checks). */
+  get swingCount(): number {
+    return this.combat?.swingCount ?? 0;
+  }
+
+  /** True during the 90 ms freeze after a hit (physics, animations and the Level clock all stop). */
+  get hitStopped(): boolean {
+    return this.hitStop.active;
   }
 
   /**
    * Level time in ms: the sum of frame deltas, so it stops while paused and runs at the same rate
    * as physics, animations and timers (Phaser clamps deltas when the window is unfocused or slow).
-   * Swings, the jump buffer and hero freezes all use it.
+   * Swings, the jump buffer, hero freezes and every enemy timer use it. Hit-stop stops it too.
    */
   get now(): number {
     return this.elapsed;
   }
 
   update(_time: number, delta: number): void {
+    if (this.hitStop.tick(delta)) return; // hit-stop: the Level clock and gameplay stand still
     this.elapsed += delta;
     const hero = this.hero;
     const controls = this.controls;
-    if (!hero || !controls) return;
+    const combat = this.combat;
+    const enemies = this.enemies;
+    if (!hero || !controls || !combat || !enemies) return;
     const now = this.elapsed;
     const mx = controls.moveX();
     if (controls.jumpPressed()) this.jumpAt = now;
@@ -162,7 +186,7 @@ export class LevelScene extends Phaser.Scene {
 
     const frozen = now < hero.frozenUntil;
     if (!frozen) {
-      if (whip) this.trySwing(now);
+      if (whip) combat.trySwing(now);
       if (hero.attacking && hero.onGround) {
         hero.setVelocityX(0); // a grounded swing plants his feet
       } else {
@@ -175,35 +199,59 @@ export class LevelScene extends Phaser.Scene {
       }
     }
 
-    this.updateWhip();
-    if (!frozen && !hero.attacking) {
+    combat.update();
+    const struck = combat.newlyStruck(enemies.list);
+    if (struck.length > 0) this.landSwing(struck, now);
+    if (this.hitStop.active) return; // frozen from this frame on (the paused swing must not fall back to idle)
+
+    const { risen, touching } = enemies.update(hero, now);
+    if (risen.length > 0 && now - this.hitLineAt >= HIT_LINE_HOLD_MS) this.say('rise');
+    if (touching) this.touched(touching, now);
+
+    if (!(now < hero.frozenUntil) && !hero.attacking) {
       if (!hero.onGround) hero.show('hero-jump');
       else hero.show(mx !== 0 ? 'hero-run' : 'hero-idle');
     }
   }
 
-  private trySwing(now: number): void {
-    const { started, stopShort } = this.swing.tryStart(now, 0); // guilt wiring: Task 11
-    if (!started) return;
-    this.swingCount += 1;
-    this.stopShort = stopShort;
-    this.hero!.play('hero-attack');
+  /** One swing's hits: one line for the lot, each survivor waits as long as that line, then hit-stop. */
+  private landSwing(struck: Enemy[], now: number): void {
+    const kind = swingLineKind(this.enemies!.strike(struck, this.hero!.body.center.x));
+    if (!kind) return;
+    const line = this.say(kind);
+    this.hitLineAt = now;
+    for (const e of struck) if (!e.health.dead) e.waitFor(now, waitMsFor(line));
+    this.hitStop.start([this.hero!, ...this.enemies!.sprites()]);
   }
 
-  private updateWhip(): void {
+  /** An enemy that can hurt touches the hero. */
+  private touched(enemy: Enemy, now: number): void {
     const hero = this.hero!;
-    const body = this.whipHitbox.body as Phaser.Physics.Arcade.Body;
-    let active = hero.attacking && this.swing.isActiveFrame(hero.animFrame);
-    if (active && this.stopShort) {
-      hero.anims.stop(); // hesitation: the swing dies before it lands
-      active = false;
+    if (this.run.hearts <= 0) return;
+    const away = hero.body.center.x >= enemy.body.center.x ? 1 : -1;
+    if (!hero.hurt(now, away * HERO.knockback)) return; // still invulnerable
+    enemy.waitFor(now, WAIT.afterContactMs);
+    this.setHearts(this.run.hearts - 1);
+    this.say('hurt');
+    if (this.run.hearts <= 0) {
+      hero.frozenUntil = Infinity; // Task 8 turns this into a retry
+      bus.emit('heroDown', {});
     }
-    const hb = hero.body;
-    const x = hero.facing > 0 ? hb.right + WHIP.width / 2 : hb.left - WHIP.width / 2;
-    // reset() moves zone and body together; moving only the zone would let the body's stale
-    // previous position drag the zone on the next physics step.
-    body.reset(x, hb.top + WHIP.dy + WHIP.height / 2);
-    body.enable = active;
+  }
+
+  /** The hero says a line (tiered by stage where the kind has tiers) and returns it. */
+  private say(kind: LineKind): string {
+    const text = this.picker.pick(kind, 1, STAGES[this.stageIndex].tier);
+    this.overlay().say(text, this.heroHead);
+    return text;
+  }
+
+  /** When a hit-stop ends, the struck enemies stop flashing and put-down ones burn up. */
+  private newHitStop(): LevelHitStop {
+    return new LevelHitStop(this, () => {
+      this.enemies?.endFlash();
+      this.enemies?.finishPutDowns();
+    });
   }
 
   private resetControls(): void {

@@ -10,7 +10,9 @@
 //
 // Object kind comes from `type` (Tiled ≤ 1.8 and 1.10+) or `class` (Tiled 1.9).
 
-export type SpawnType = 'skeleton' | 'ghost' | 'cat';
+import type { SpawnType } from '../../shared/spawnType';
+
+export type { SpawnType };
 
 export type LevelData = {
   widthPx: number;

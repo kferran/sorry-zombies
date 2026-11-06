@@ -9,9 +9,10 @@ const HURT_FREEZE_MS = 300;
 /** The side-scroller hero. Positioned by his feet: `y` is the bottom of his body. */
 export class Hero extends Phaser.Physics.Arcade.Sprite {
   declare body: Phaser.Physics.Arcade.Body;
-  /** Controls are ignored until this scene time (knockback, bow, kneel). */
+  /** Controls are ignored until this Level-clock time (`LevelScene.now`): knockback, bow, kneel. */
   frozenUntil = 0;
   facing: 1 | -1 = 1;
+  /** Level-clock time until which hits are ignored. */
   invulnerableUntil = 0;
 
   constructor(scene: Phaser.Scene, x: number, feetY: number) {

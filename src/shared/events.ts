@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import type { SpawnType } from './spawnType';
 
 export type GameEventMap = {
   zombieHit: { zombieId: number; wave: number };
@@ -6,6 +7,14 @@ export type GameEventMap = {
   heroHurt: { hearts: number };
   /** Side-scroller: the hero's hearts changed (start of a stage, hurt, refill). */
   heartsChanged: { hearts: number };
+  /** Side-scroller: an enemy woke (a skeleton climbs out). */
+  enemyRose: { enemyId: number; kind: SpawnType };
+  /** Side-scroller: the whip struck an enemy that survived. `stage` is the stage index. */
+  enemyHit: { enemyId: number; kind: SpawnType; stage: number };
+  /** Side-scroller: an enemy was put down. */
+  enemyPutDown: { enemyId: number; kind: SpawnType; stage: number };
+  /** Side-scroller: the hero's last heart is gone (Task 8 turns this into a retry). */
+  heroDown: Record<string, never>;
   apologized: { cleared: number };
   guiltChanged: { guilt: number; level: 0 | 1 | 2 };
   waveStarted: { wave: number };
