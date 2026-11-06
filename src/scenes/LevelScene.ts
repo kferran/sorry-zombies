@@ -14,18 +14,16 @@ import { GRAVITY, HERO } from '../entities/hero/hero.stats';
 import type { Enemy } from '../entities/enemy/Enemy';
 import { WAIT, waitMsFor } from '../entities/enemy/enemy.stats';
 import { STAGES } from './run/stages';
-import { HeroCombat } from './level/HeroCombat';
+import { RunState, decideFrame } from './run/RunState';
+import { HeroCombat, overlaps } from './level/HeroCombat';
 import { LevelEnemies } from './level/LevelEnemies';
 import { LevelHitStop } from './level/LevelHitStop';
 import type { OverlayScene } from './OverlayScene';
 
-/** Until RunState lands (Task 8), a run is just the mode and the hearts left. */
-export type LocalRun = { mode: ModeConfig; hearts: number };
-
 export type LevelInit = {
-  run?: LocalRun;
+  run?: RunState;
   stageIndex?: number;
-  /** Legacy shape from MenuScene.startRun. */
+  /** Without a run, a fresh one in this mode (debug/play checks). */
   mode?: ModeConfig;
   /** Debug/play-check override: load maps/<mapKey>.json instead of the stage's map. */
   mapKey?: string;
@@ -38,6 +36,12 @@ const JUMP_BUFFER_MS = 100;
 const HIT_LINE_HOLD_MS = 800;
 /** Sky colour at the top of bg-moon, shown above the backgrounds (which are 224 px tall, maps 240). */
 const SKY = '#000022';
+/** After the last heart goes, the hero lies there this long (Level clock) before the stage restarts. */
+const RETRY_BEAT_MS = 800;
+/** Touch zones at the exit and the lantern: this wide and tall, standing on the marker. */
+const ZONE = { width: 16, height: 40 } as const;
+type Box = { left: number; right: number; top: number; bottom: number };
+
 const PARALLAX: [key: string, factor: number][] = [
   ['gv-bg-moon', 0.1],
   ['gv-bg-mountains', 0.3],
@@ -45,7 +49,7 @@ const PARALLAX: [key: string, factor: number][] = [
 ];
 
 export class LevelScene extends Phaser.Scene {
-  run: LocalRun = { mode: MODES.casual, hearts: HERO.hearts };
+  run = new RunState(MODES.casual);
   stageIndex = 0;
   mapKey = STAGES[0].key;
   level?: LevelData;
@@ -55,6 +59,10 @@ export class LevelScene extends Phaser.Scene {
   /** Live point above the hero's head, in world coordinates; bubbles follow it. */
   readonly heroHead: Point = headOf(this);
   brokenMessage?: string;
+  /** Level-clock time the retry happens (set when the last heart goes). */
+  retryAt?: number;
+  /** Set once the stage is cleared or a retry is under way: nothing else is decided. */
+  ending = false;
 
   private controls?: PlatformInput;
   private picker = new ApologyPicker(LINES);
@@ -62,12 +70,21 @@ export class LevelScene extends Phaser.Scene {
   private hitLineAt = -Infinity;
   private jumpAt = -Infinity;
   private elapsed = 0;
+  private exitZone?: Box;
+  private checkpointZone?: Box;
+  private lantern?: Phaser.GameObjects.Image;
+  private lanternGlow?: Phaser.GameObjects.Image;
 
   constructor() { super('Level'); }
 
   init(data: LevelInit): void {
-    this.run = data.run ?? { mode: data.mode ?? MODES.casual, hearts: HERO.hearts };
     this.stageIndex = data.stageIndex ?? 0;
+    if (data.run) {
+      this.run = data.run;
+    } else {
+      this.run = new RunState(data.mode ?? MODES.casual);
+      this.run.startStage(this.stageIndex);
+    }
     this.mapKey = data.mapKey ?? STAGES[this.stageIndex].key;
     this.level = undefined;
     this.hero = undefined;
@@ -79,6 +96,12 @@ export class LevelScene extends Phaser.Scene {
     this.hitLineAt = -Infinity;
     this.jumpAt = -Infinity;
     this.elapsed = 0;
+    this.retryAt = undefined;
+    this.ending = false;
+    this.exitZone = undefined;
+    this.checkpointZone = undefined;
+    this.lantern = undefined;
+    this.lanternGlow = undefined;
   }
 
   preload(): void {
@@ -104,7 +127,10 @@ export class LevelScene extends Phaser.Scene {
     this.physics.world.gravity.y = GRAVITY;
     this.physics.world.setBounds(0, 0, level.widthPx, level.heightPx);
 
-    const hero = new Hero(this, level.heroStart.x, level.heroStart.y);
+    this.addExit(level.exit);
+    this.addLantern(level.checkpoint);
+    const start = this.run.checkpointLit && level.checkpoint ? level.checkpoint : level.heroStart;
+    const hero = new Hero(this, start.x, start.y);
     this.hero = hero;
     this.physics.add.collider(hero, ground);
 
@@ -179,6 +205,7 @@ export class LevelScene extends Phaser.Scene {
     const enemies = this.enemies;
     if (!hero || !controls || !combat || !enemies) return;
     const now = this.elapsed;
+    if (this.retryAt !== undefined && now >= this.retryAt) { this.retry(); return; }
     const mx = controls.moveX();
     if (controls.jumpPressed()) this.jumpAt = now;
     const whip = controls.whipPressed();
@@ -212,11 +239,82 @@ export class LevelScene extends Phaser.Scene {
       if (!hero.onGround) hero.show('hero-jump');
       else hero.show(mx !== 0 ? 'hero-run' : 'hero-idle');
     }
+    this.decide(now);
+  }
+
+  /** Once a frame, after combat: light the lantern, then retry, clear or carry on. */
+  private decide(now: number): void {
+    if (this.ending) return;
+    const body = this.hero!.body;
+    if (!this.run.checkpointLit && this.checkpointZone && overlaps(body, this.checkpointZone)) this.lightLantern();
+    const atExit = this.exitZone !== undefined && overlaps(body, this.exitZone);
+    switch (decideFrame(this.run.hearts, atExit)) {
+      case 'retry':
+        this.ending = true;
+        this.retryAt = now + RETRY_BEAT_MS;
+        break;
+      case 'clear':
+        this.ending = true;
+        this.run.clearStage();
+        this.scene.start('LevelCard', { run: this.run, stage: this.stageIndex });
+        break;
+      case 'continue':
+        break;
+    }
+  }
+
+  /** Same stage again with 3 hearts, from the lantern if lit; the restart rebuilds every enemy asleep. */
+  private retry(): void {
+    this.retryAt = undefined;
+    this.run.retry();
+    const data: LevelInit = { run: this.run, stageIndex: this.stageIndex };
+    if (this.mapKey !== STAGES[this.stageIndex].key) data.mapKey = this.mapKey;
+    this.scene.restart(data);
+  }
+
+  /** Is the checkpoint lantern lit? (Play checks.) */
+  get lanternLit(): boolean {
+    return this.run.checkpointLit;
+  }
+
+  private addExit(exit: LevelData['exit']): void {
+    if (!exit) return;
+    this.add.image(exit.x, exit.y, 'exit-gate').setOrigin(0.5, 1).setDepth(2);
+    this.exitZone = standingBox(exit);
+  }
+
+  private addLantern(at: LevelData['checkpoint']): void {
+    if (!at) return;
+    this.lanternGlow = this.add.image(at.x, at.y - 24, 'lantern-glow')
+      .setBlendMode(Phaser.BlendModes.ADD).setDepth(3).setVisible(false);
+    this.lantern = this.add.image(at.x, at.y, 'lantern-unlit').setOrigin(0.5, 1).setDepth(4);
+    this.checkpointZone = standingBox(at);
+    if (this.run.checkpointLit) this.showLit();
+  }
+
+  private lightLantern(): void {
+    this.run.checkpointLit = true;
+    this.showLit();
+  }
+
+  private showLit(): void {
+    this.lantern?.setTexture('lantern-lit');
+    const glow = this.lanternGlow;
+    if (!glow) return;
+    glow.setVisible(true);
+    this.tweens.add({ targets: glow, alpha: { from: 1, to: 0.6 }, duration: 700, yoyo: true, repeat: -1 });
   }
 
   /** One swing's hits: one line for the lot, each survivor waits as long as that line, then hit-stop. */
   private landSwing(struck: Enemy[], now: number): void {
-    const kind = swingLineKind(this.enemies!.strike(struck, this.hero!.body.center.x));
+    const results = this.enemies!.strike(struck, this.hero!.body.center.x);
+    const stats = this.run.stats;
+    for (const r of results) {
+      if (r === 'ignored') continue;
+      stats.enemiesHurt++;
+      if (r === 'killed') stats.enemiesPutDown++;
+    }
+    const kind = swingLineKind(results);
     if (!kind) return;
     const line = this.say(kind);
     this.hitLineAt = now;
@@ -234,7 +332,7 @@ export class LevelScene extends Phaser.Scene {
     this.setHearts(this.run.hearts - 1);
     this.say('hurt');
     if (this.run.hearts <= 0) {
-      hero.frozenUntil = Infinity; // Task 8 turns this into a retry
+      hero.frozenUntil = Infinity; // decide() schedules the retry this frame
       bus.emit('heroDown', {});
     }
   }
@@ -312,6 +410,11 @@ export class LevelScene extends Phaser.Scene {
     this.controls = undefined;
     this.scene.stop('Overlay');
   }
+}
+
+/** A ZONE-sized box standing on a map marker (x centre, y the surface under it). */
+function standingBox(at: { x: number; y: number }): Box {
+  return { left: at.x - ZONE.width / 2, right: at.x + ZONE.width / 2, top: at.y - ZONE.height, bottom: at.y };
 }
 
 /** A live point at the top-centre of the hero's body; reads (0, 0) before he exists. */

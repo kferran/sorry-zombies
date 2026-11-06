@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { Button } from '../shared/ui/Button';
 import { MODES, type ModeId } from '../shared/modes';
 import { getBest } from '../features/scoring/bestScores';
+import { RunState } from './run/RunState';
 import { chooseInput, getInputPref, nextInputPref, setInputPref, type InputPref } from '../shared/input/selectInput';
 
 const HINTS = {
@@ -52,9 +53,11 @@ export class MenuScene extends Phaser.Scene {
     }).setOrigin(0.5);
   }
 
-  /** Side-scroller run. Still a stub scene until the run state lands. */
+  /** Side-scroller run: a fresh RunState, stage 0. */
   startRun(modeId: ModeId): void {
-    this.scene.start('Level', { mode: MODES[modeId] });
+    const run = new RunState(MODES[modeId]);
+    run.startStage(0);
+    this.scene.start('Level', { run, stageIndex: 0 });
   }
 
   startArena(modeId: ModeId): void {

@@ -73,7 +73,9 @@ export class HeroCombat {
   }
 }
 
-/** Do two Arcade bodies' boxes overlap? (Touching edges don't count.) */
-export function overlaps(a: Phaser.Physics.Arcade.Body, b: Phaser.Physics.Arcade.Body): boolean {
+type Edges = { left: number; right: number; top: number; bottom: number };
+
+/** Do two boxes (Arcade bodies or plain edges) overlap? (Touching edges don't count.) */
+export function overlaps(a: Edges, b: Edges): boolean {
   return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 }

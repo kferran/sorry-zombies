@@ -13,7 +13,7 @@ const NEAR_PX = 4;
 
 /**
  * Asleep: invisible and bodiless underground. Wakes into the 6-frame rise (can't move or hurt), then
- * shambles toward the hero at 30 px/s, turning back at ledge edges. Faces left in the atlas.
+ * shambles toward the hero at 30 px/s, turning back at ledge edges and at graves or walls in its way. Faces left in the atlas.
  */
 export class Skeleton extends Enemy {
   readonly wakeDistance = ENEMY.skeleton.wake;
@@ -71,13 +71,19 @@ export class Skeleton extends Enemy {
       if (Math.abs(dx) < NEAR_PX) { this.standStill(); return; }
       this.face(dx > 0 ? 1 : -1);
     }
-    if (!this.groundAhead(this.facing)) {
+    if (!this.canGo(this.facing)) {
       this.face(this.facing === 1 ? -1 : 1);
       this.turnedUntil = now + TURN_MS;
-      if (!this.groundAhead(this.facing)) { this.standStill(); return; } // a one-tile perch
+      if (!this.canGo(this.facing)) { this.standStill(); return; } // a one-tile perch, or boxed in
     }
     this.setVelocityX(this.facing * ENEMY.skeleton.speed);
     if (this.anims.currentAnim?.key !== 'skeleton-walk' || !this.anims.isPlaying) this.play('skeleton-walk');
+  }
+
+  /** Ground ahead and nothing in the way (a grave or wall blocked the last step in that direction). */
+  private canGo(dir: 1 | -1): boolean {
+    const blocked = dir === 1 ? this.body.blocked.right : this.body.blocked.left;
+    return !blocked && this.groundAhead(dir);
   }
 
   /** The ground tile one tile ahead of its centre, one tile below its feet. */
