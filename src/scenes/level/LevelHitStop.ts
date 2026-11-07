@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { HitStop } from '../../features/combat/HitStop';
+import { HitStop, mergeHeld } from '../../features/combat/HitStop';
 
 /**
  * The 90 ms freeze after a hit: arcade physics, the given sprites' animations and the scene's tweens
@@ -16,13 +16,19 @@ export class LevelHitStop {
     return this.countdown.active;
   }
 
+  /**
+   * Freezes for 90 ms. A start while already frozen extends the freeze to the longer of the two and
+   * holds the new sprites too (the ones held by the first start stay held and are resumed at the end).
+   */
   start(sprites: Phaser.GameObjects.Sprite[]): void {
+    const already = this.countdown.active;
     this.countdown.start();
     this.scene.physics.pause();
     this.scene.tweens.pauseAll();
-    this.paused = sprites.filter(s => s.anims.isPlaying);
-    for (const s of this.paused) s.anims.pause();
-    this.scene.cameras.main.shake(80, 0.004);
+    const held = mergeHeld(this.paused, sprites, s => s.anims.isPlaying);
+    for (const s of held.slice(this.paused.length)) s.anims.pause();
+    this.paused = held;
+    if (!already) this.scene.cameras.main.shake(80, 0.004);
   }
 
   /**

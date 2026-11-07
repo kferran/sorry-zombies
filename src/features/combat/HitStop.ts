@@ -22,3 +22,14 @@ export class HitStop {
     return 'ended';
   }
 }
+
+/**
+ * The sprites a hit-stop holds after another start: those already held (now paused, so no longer
+ * "playing") stay, and the incoming ones still playing join them, each once. A second start while
+ * frozen must not drop the first start's sprites, or they would never be resumed.
+ */
+export function mergeHeld<T>(held: readonly T[], incoming: readonly T[], playing: (s: T) => boolean): T[] {
+  const out = [...held];
+  for (const s of incoming) if (!out.includes(s) && playing(s)) out.push(s);
+  return out;
+}

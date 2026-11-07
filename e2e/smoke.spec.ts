@@ -18,6 +18,21 @@ for (const modeId of ['casual', 'conscience'] as const) {
     expect(errors).toEqual([]);
   });
 
+  test(`boss ${modeId} starts with no console errors`, async ({ page }) => {
+    const errors: string[] = [];
+    await openMenu(page, errors);
+    await page.evaluate(id => (window as any).__SORRY__.scene.getScene('Menu').startRun(id), modeId);
+    await page.waitForFunction(() => (window as any).__SORRY__.scene.getScene('Level')?.hero);
+    await page.evaluate(() => {
+      const lv = (window as any).__SORRY__.scene.getScene('Level');
+      lv.scene.start('Boss', { run: lv.run });
+    });
+    await page.waitForFunction(() => (window as any).__SORRY__.scene.getScene('Boss')?.boss
+      && (window as any).__SORRY__.scene.isActive('Overlay'));
+    await page.waitForTimeout(500);
+    expect(errors).toEqual([]);
+  });
+
   test(`arena ${modeId} starts with no console errors`, async ({ page }) => {
     const errors: string[] = [];
     await openMenu(page, errors);

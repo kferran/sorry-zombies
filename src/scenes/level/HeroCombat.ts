@@ -3,7 +3,8 @@ import { SwingRules } from '../../features/combat/SwingRules';
 import { SwingHits } from '../../features/combat/SwingHits';
 import type { Hero } from '../../entities/hero/Hero';
 import { WHIP } from '../../entities/hero/hero.stats';
-import type { Enemy } from '../../entities/enemy/Enemy';
+/** Something the whip can strike: an enemy or the Groundskeeper. `enemyId` must be unique in the room. */
+export type Strikeable = { readonly enemyId: number; readonly hittable: boolean; body: Phaser.Physics.Arcade.Body | null };
 
 /**
  * The hero's whip: swing timing, the hitbox (a 24×20 zone in front of him, live on attack frames 3–5)
@@ -61,11 +62,11 @@ export class HeroCombat {
     body.enable = active;
   }
 
-  /** Enemies the live hitbox overlaps that this swing hasn't struck yet. Call right after `update()`. */
-  newlyStruck(enemies: readonly Enemy[]): Enemy[] {
+  /** Targets the live hitbox overlaps that this swing hasn't struck yet. Call right after `update()`. */
+  newlyStruck<T extends Strikeable>(targets: readonly T[]): T[] {
     if (!this.active) return [];
     const w = this.body;
-    return enemies.filter(e => e.hittable && e.body?.enable && overlaps(w, e.body) && this.hits.admit(e.enemyId));
+    return targets.filter(e => e.hittable && e.body?.enable && overlaps(w, e.body) && this.hits.admit(e.enemyId));
   }
 
   private get body(): Phaser.Physics.Arcade.Body {

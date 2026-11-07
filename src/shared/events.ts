@@ -19,6 +19,12 @@ export type GameEventMap = {
   stageCleared: { stage: number };
   /** Side-scroller: the stage restarts after the last heart went. */
   retry: { stage: number };
+  /** Boss: the Groundskeeper stops to listen after the 4th hit of a phase (`pause` 1–3). */
+  bossListening: { pause: 1 | 2 | 3 };
+  /** Boss: a bow during a listening pause was accepted (Full Conscience). */
+  bossAccepted: { pause: 1 | 2 | 3 };
+  /** Boss: the third pause ended in forgiveness. */
+  bossForgave: Record<string, never>;
   apologized: { cleared: number };
   guiltChanged: { guilt: number; level: 0 | 1 | 2 };
   waveStarted: { wave: number };

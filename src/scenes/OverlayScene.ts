@@ -22,6 +22,9 @@ const BUTTON_ALPHA = { rest: 0.18, pressed: 0.5 } as const;
 const BUTTON_FILL: Record<TouchButtonId, number> = { jump: 0xffffff, whip: 0xffffff, sorry: 0xfacc15 };
 const TOUCH_DEPTH = 900;
 
+/** Who is speaking: the hero, or the Groundskeeper (his own bubble, so both can talk at once). */
+export type Speaker = 'hero' | 'boss';
+
 const PAUSED = 'Paused\n\nPress Esc or tap to resume';
 const ROTATE = 'Please rotate your phone\nto landscape';
 
@@ -32,7 +35,7 @@ export class OverlayScene extends Phaser.Scene {
   private host = 'Level';
   private startHearts: number = HERO.hearts;
   private hearts: Phaser.GameObjects.Image[] = [];
-  private bubble!: SpeechBubble;
+  private bubbles!: Record<Speaker, SpeechBubble>;
   private pauseOverlay?: Phaser.GameObjects.Container;
   private pauseLabel?: Phaser.GameObjects.Text;
   /** Name tags on screen, by tag id (a hell-cat's enemy id). */
@@ -63,7 +66,8 @@ export class OverlayScene extends Phaser.Scene {
     this.add.text(this.scale.width / 2, 16, this.stageName, {
       fontFamily: 'monospace', fontSize: '22px', color: '#ffffff', stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5, 0);
-    this.bubble = new SpeechBubble(this, p => this.project(p));
+    const project = (p: Point) => this.project(p);
+    this.bubbles = { hero: new SpeechBubble(this, project), boss: new SpeechBubble(this, project) };
 
     bus.on('heartsChanged', this.onHearts, this);
     const kb = this.input.keyboard!;
@@ -84,7 +88,8 @@ export class OverlayScene extends Phaser.Scene {
       document.removeEventListener('visibilitychange', onVisibility);
       this.scale.off(Phaser.Scale.Events.RESIZE, onResize);
       this.scale.off(Phaser.Scale.Events.ORIENTATION_CHANGE, onResize);
-      this.bubble.destroy();
+      this.bubbles.hero.destroy();
+      this.bubbles.boss.destroy();
     });
   }
 
@@ -166,9 +171,14 @@ export class OverlayScene extends Phaser.Scene {
     return this.mode.guilt;
   }
 
-  /** Shows `text` above `target`, a live point in the host scene's world (read every frame). */
-  say(text: string, target: Point): void {
-    this.bubble.say(text, target);
+  /** Shows `text` above `target`, a live point in the host scene's world (read every frame), in `who`'s bubble. */
+  say(text: string, target: Point, who: Speaker = 'hero'): void {
+    this.bubbles[who].say(text, target);
+  }
+
+  /** The line in `who`'s bubble now, or null (play checks). */
+  bubbleText(who: Speaker = 'hero'): string | null {
+    return this.bubbles?.[who]?.shownText ?? null;
   }
 
   /** Host world → this scene's screen, through the host's (zoomed, scrolling) main camera. */

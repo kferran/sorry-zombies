@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
 import { BootScene } from '../scenes/BootScene';
 import { MenuScene } from '../scenes/MenuScene';
-import { STUB_SCENES } from '../scenes/StubScenes';
 import { LevelScene } from '../scenes/LevelScene';
+import { BossScene } from '../scenes/BossScene';
 import { OverlayScene } from '../scenes/OverlayScene';
 import { LevelCardScene } from '../scenes/LevelCardScene';
 import { SummaryScene } from '../scenes/SummaryScene';
@@ -26,7 +26,7 @@ const game = new Phaser.Game({
   physics: { default: 'arcade', arcade: { debug: false } },
   input: { activePointers: 3 },
   // Overlay after Level/Boss: it draws (and projects bubbles) after them.
-  scene: [BootScene, MenuScene, LevelScene, ...STUB_SCENES, OverlayScene, LevelCardScene, SummaryScene, ArenaGameScene, ArenaHudScene, ArenaSummaryScene],
+  scene: [BootScene, MenuScene, LevelScene, BossScene, OverlayScene, LevelCardScene, SummaryScene, ArenaGameScene, ArenaHudScene, ArenaSummaryScene],
 });
 
 // Debug handles for the smoke test and play checks.

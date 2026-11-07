@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { HitStop } from './HitStop';
+import { HitStop, mergeHeld } from './HitStop';
 
 describe('HitStop', () => {
   it('is idle until started', () => {
@@ -36,5 +36,22 @@ describe('HitStop', () => {
     h.start(90);
     expect(h.tick(60)).toBe('frozen');
     expect(h.tick(30)).toBe('ended');
+  });
+});
+
+describe('mergeHeld', () => {
+  const playing = (s: { playing: boolean }) => s.playing;
+
+  it('holds the playing ones of a first start', () => {
+    const a = { playing: true }, b = { playing: false };
+    expect(mergeHeld([], [a, b], playing)).toEqual([a]);
+  });
+
+  it('a second start keeps the sprites already held (now paused) and adds newly playing ones once', () => {
+    const a = { playing: true }, b = { playing: true }, c = { playing: true };
+    let held = mergeHeld([], [a, b], playing);
+    a.playing = false; b.playing = false; // the first start paused them
+    held = mergeHeld(held, [a, b, c, c], playing);
+    expect(held).toEqual([a, b, c]);
   });
 });

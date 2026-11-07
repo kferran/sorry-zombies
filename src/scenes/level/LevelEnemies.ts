@@ -28,16 +28,18 @@ export class LevelEnemies {
   private dying: Enemy[] = [];
   private fades: Fade[] = [];
   private nextId = 1;
+  private readonly probe: (x: number, y: number) => boolean;
   /** The Level clock at the last `update()` (put-downs finish between updates). */
   private lastNow = 0;
 
   constructor(
     private readonly scene: Phaser.Scene,
-    ground: Phaser.Tilemaps.TilemapLayer,
+    private readonly ground: Phaser.Tilemaps.TilemapLayer,
     spawns: LevelData['spawns'],
     private readonly stage: number,
   ) {
     const probe = (x: number, y: number) => ground.hasTileAtWorldXY(x, y);
+    this.probe = probe;
     for (const s of spawns) {
       const id = this.nextId++;
       switch (s.type) {
@@ -48,6 +50,20 @@ export class LevelEnemies {
     }
     // Ghosts drift through graves and walls; everything else stands on the ground.
     scene.physics.add.collider(this.list.filter(e => e.kind !== 'ghost'), ground);
+  }
+
+  /**
+   * A skeleton climbs out at (x, feetY) at once, facing `heroX` (the Groundskeeper raises them).
+   * It is woken here, so it isn't in the next `update()`'s `risen`; `enemyRose` is emitted all the same.
+   */
+  raiseSkeleton(x: number, feetY: number, heroX: number, now: number): Skeleton {
+    const s = new Skeleton(this.scene, x, feetY, this.nextId++, this.probe);
+    this.list.push(s);
+    this.scene.physics.add.collider(s, this.ground);
+    s.face(heroX > x ? 1 : -1);
+    s.wake(now);
+    bus.emit('enemyRose', { enemyId: s.enemyId, kind: s.kind });
+    return s;
   }
 
   /** Wakes the ones the hero has come near, runs the awake ones, and finds one that can hurt him. */

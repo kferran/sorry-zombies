@@ -38,6 +38,11 @@ export class SpeechBubble {
     scene.events.on(this.frameEvent, this.reposition, this);
   }
 
+  /** The line on show now, or null (play checks). */
+  get shownText(): string | null {
+    return this.container.visible ? this.text.text : null;
+  }
+
   say(text: string, follow: Point): void {
     this.follow = follow;
     this.text.setText(text);
