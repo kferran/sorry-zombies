@@ -117,6 +117,9 @@ export class BossScene extends StageScene {
   protected override onHitStopEnd(): void {
     super.onHitStopEnd();
     this.boss?.endFlash();
+    // A freeze started earlier in the same frame (a skeleton struck by the same swing) held ghost-float
+    // and has just resumed it: put the arms back.
+    if (this.boss?.isListening) this.boss.holdPose();
   }
 
   /** Counted: flash, hit-stop and an apology from the hero (the boss says nothing). Ignored while it listens: it's disappointed. */
@@ -125,14 +128,16 @@ export class BossScene extends StageScene {
       if (this.brain.state === 'listening') this.sayBoss('bossDisappointed');
       return;
     }
+    this.run.stats.enemiesHurt++; // whip hits on the Groundskeeper count as enemies hurt (not put to rest)
     boss.flash();
     if (this.hitLineAt !== now) { // one line per swing: a skeleton struck by the same swing already got one
       this.say('hit');
       this.hitLineAt = now;
     }
-    this.hitStop.start(this.hitStopSprites());
+    // Fold its arms before the freeze, so the hit-stop doesn't hold (and later resume) ghost-float.
     if (this.brain.state === 'listening') this.startListening(boss, now);
     else boss.recoil(now);
+    this.hitStop.start(this.hitStopSprites());
   }
 
   /** The 4th hit of a phase: it stops, folds its arms and judges; the skeletons stand still meanwhile. */

@@ -82,9 +82,18 @@ export class Groundskeeper extends Phaser.Physics.Arcade.Sprite {
   listen(): void {
     this.listening = true;
     this.flight.hold();
+    this.holdPose();
+    this.setTint(GROUNDSKEEPER.listeningTint);
+  }
+
+  /**
+   * Arms folded: the animation stopped on one frame. Also called when a hit-stop ends while it
+   * listens: a hit-stop that paused ghost-float would otherwise resume it (Phaser's stop() leaves
+   * the pause flag set, and resume() restarts a paused animation).
+   */
+  holdPose(): void {
     this.anims.stop();
     this.setFrame('ghost-halo-1');
-    this.setTint(GROUNDSKEEPER.listeningTint);
   }
 
   /** Done listening: back up to its patrol. */
