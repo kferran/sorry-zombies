@@ -4,7 +4,9 @@ import { MODES, type ModeConfig } from '../shared/modes';
 import type { Point } from '../shared/projection';
 import { Button } from '../shared/ui/Button';
 import type { PlatformInput } from '../shared/input/PlatformInput';
-import { KeyboardPlatformInput } from '../shared/input/KeyboardPlatformInput';
+import { TouchPlatformInput } from '../shared/input/TouchPlatformInput';
+import { makePlatformInput } from '../shared/input/makePlatformInput';
+import type { TouchHud } from '../shared/input/touchPad';
 import { LevelError, parseLevel, type LevelData } from '../features/levels/LevelLoader';
 import { swingLineKind } from '../features/combat/SwingHits';
 import { ApologyPicker, type LineKind } from '../features/apologies/ApologyPicker';
@@ -146,7 +148,7 @@ export class LevelScene extends Phaser.Scene {
     cam.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     cam.startFollow(hero, true);
 
-    this.controls = new KeyboardPlatformInput(this);
+    this.controls = makePlatformInput(this, this.run.mode.guilt);
     this.controls.reset();
     this.events.on(Phaser.Scenes.Events.PAUSE, this.resetControls, this);
     this.events.on(Phaser.Scenes.Events.RESUME, this.resetControls, this);
@@ -282,6 +284,17 @@ export class LevelScene extends Phaser.Scene {
   /** Hell-cat name tags for the Overlay (world px). */
   nameTags(): NameTag[] {
     return this.enemies?.nameTags() ?? [];
+  }
+
+  /** Touch buttons and stick for the Overlay to draw, or null with keyboard controls. */
+  touchHud(): TouchHud | null {
+    return this.controls instanceof TouchPlatformInput ? this.controls.hud() : null;
+  }
+
+  /** 'touch' or 'keyboard' (play checks). */
+  get inputKind(): 'touch' | 'keyboard' | undefined {
+    if (!this.controls) return undefined;
+    return this.controls instanceof TouchPlatformInput ? 'touch' : 'keyboard';
   }
 
   /** Is the checkpoint lantern lit? (Play checks.) */

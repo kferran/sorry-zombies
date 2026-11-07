@@ -6,6 +6,8 @@ import { worldToScreen, type Point } from '../shared/projection';
 import { SpeechBubble } from '../features/apologies/SpeechBubble';
 import { hasNameTags } from '../shared/nameTags';
 import { HERO } from '../entities/hero/hero.stats';
+import { STICK_RADIUS } from '../shared/input/touchSticks';
+import { hasTouchHud, type TouchButtonId, type TouchHud } from '../shared/input/touchPad';
 
 export type OverlayData = {
   mode: ModeConfig;
@@ -14,6 +16,11 @@ export type OverlayData = {
   host?: string;
   hearts?: number;
 };
+
+/** Touch buttons: fill alpha at rest and while pressed. */
+const BUTTON_ALPHA = { rest: 0.18, pressed: 0.5 } as const;
+const BUTTON_FILL: Record<TouchButtonId, number> = { jump: 0xffffff, whip: 0xffffff, sorry: 0xfacc15 };
+const TOUCH_DEPTH = 900;
 
 const PAUSED = 'Paused\n\nPress Esc or tap to resume';
 const ROTATE = 'Please rotate your phone\nto landscape';
@@ -30,6 +37,10 @@ export class OverlayScene extends Phaser.Scene {
   private pauseLabel?: Phaser.GameObjects.Text;
   /** Name tags on screen, by tag id (a hell-cat's enemy id). */
   private tags = new Map<number, Phaser.GameObjects.Text>();
+  /** Touch buttons by id, built the first frame the host has touch controls. */
+  private touchButtons = new Map<TouchButtonId, { disc: Phaser.GameObjects.Arc; label: Phaser.GameObjects.Text }>();
+  private stickBase?: Phaser.GameObjects.Arc;
+  private stickKnob?: Phaser.GameObjects.Arc;
 
   constructor() { super('Overlay'); }
 
@@ -44,6 +55,9 @@ export class OverlayScene extends Phaser.Scene {
     this.pauseOverlay = undefined;
     this.pauseLabel = undefined;
     this.tags = new Map();
+    this.touchButtons = new Map();
+    this.stickBase = undefined;
+    this.stickKnob = undefined;
     this.hearts = Array.from({ length: HERO.hearts }, (_, i) => this.add.image(28 + i * 26, 28, 'heart'));
     this.drawHearts(this.startHearts);
     this.add.text(this.scale.width / 2, 16, this.stageName, {
@@ -95,6 +109,51 @@ export class OverlayScene extends Phaser.Scene {
       if (seen.has(id)) continue;
       label.destroy();
       this.tags.delete(id);
+    }
+    this.drawTouch(hasTouchHud(host) ? host.touchHud() : null);
+  }
+
+  /** Touch buttons drawn now, with pressed state (play checks). */
+  get touchButtonsShown(): { id: TouchButtonId; pressed: boolean }[] {
+    return [...this.touchButtons].filter(([, v]) => v.disc.visible)
+      .map(([id, v]) => ({ id, pressed: v.disc.fillAlpha > BUTTON_ALPHA.rest }));
+  }
+
+  /** Buttons (semi-transparent, white outline, brighter while held) and the floating stick, in screen px. */
+  private drawTouch(hud: TouchHud | null): void {
+    const shown = new Set<TouchButtonId>();
+    for (const b of hud?.buttons ?? []) {
+      shown.add(b.id);
+      let view = this.touchButtons.get(b.id);
+      if (!view) {
+        const disc = this.add.circle(b.x, b.y, b.r, BUTTON_FILL[b.id], BUTTON_ALPHA.rest)
+          .setStrokeStyle(3, 0xffffff, 0.85).setDepth(TOUCH_DEPTH);
+        const label = this.add.text(b.x, b.y, b.label, {
+          fontFamily: 'monospace', fontSize: b.r > 50 ? '24px' : '20px', color: '#ffffff', stroke: '#000000', strokeThickness: 4,
+        }).setOrigin(0.5).setDepth(TOUCH_DEPTH + 1);
+        view = { disc, label };
+        this.touchButtons.set(b.id, view);
+      }
+      view.disc.setVisible(true).setFillStyle(BUTTON_FILL[b.id], b.pressed ? BUTTON_ALPHA.pressed : BUTTON_ALPHA.rest);
+      view.label.setVisible(true).setAlpha(b.pressed ? 1 : 0.85);
+    }
+    for (const [id, view] of this.touchButtons) {
+      if (shown.has(id)) continue;
+      view.disc.setVisible(false);
+      view.label.setVisible(false);
+    }
+
+    const stick = hud?.stick ?? null;
+    if (stick && !this.stickBase) {
+      this.stickBase = this.add.circle(0, 0, STICK_RADIUS, 0xffffff, 0.12)
+        .setStrokeStyle(2, 0xffffff, 0.4).setDepth(TOUCH_DEPTH);
+      this.stickKnob = this.add.circle(0, 0, 26, 0xffffff, 0.35).setDepth(TOUCH_DEPTH + 1);
+    }
+    this.stickBase?.setVisible(!!stick);
+    this.stickKnob?.setVisible(!!stick);
+    if (stick) {
+      this.stickBase!.setPosition(stick.origin.x, stick.origin.y);
+      this.stickKnob!.setPosition(stick.knob.x, stick.knob.y);
     }
   }
 

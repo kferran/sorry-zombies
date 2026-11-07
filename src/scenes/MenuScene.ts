@@ -7,7 +7,7 @@ import { chooseInput, getInputPref, nextInputPref, setInputPref, type InputPref 
 
 const HINTS = {
   mouse: 'WASD to move · mouse to aim · click to shoot · Space to apologize',
-  touch: 'Left thumb to move · drag right to aim and fire · tap Sorry! to apologize',
+  touch: 'Left thumb to walk · Jump · Whip · Sorry! to bow',
 };
 const PREF_LABELS: Record<InputPref, string> = { auto: 'Controls: Auto', touch: 'Controls: Touch', mouse: 'Controls: Mouse' };
 

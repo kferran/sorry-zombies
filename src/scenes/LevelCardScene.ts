@@ -6,7 +6,10 @@ import type { RunState } from './run/RunState';
 
 export type LevelCardData = { run: RunState; stage: number };
 
-/** Keys and taps are ignored this long after the card appears, so a held key or a last swing doesn't skip it. */
+/**
+ * Keys and taps are ignored this long after the card appears, so a held key or a last swing doesn't skip it.
+ * After that a tap must also go down afresh (a thumb held from the Level lifting doesn't count).
+ */
 const ARM_MS = 400;
 
 /** Between stages: the cleared stage's tally and one line. Any key or tap goes on to the next stage. */
@@ -50,7 +53,10 @@ export class LevelCardScene extends Phaser.Scene {
       prompt.setAlpha(1);
       this.tweens.add({ targets: prompt, alpha: 0.4, duration: 800, yoyo: true, repeat: -1 });
       this.input.keyboard?.on('keydown', (e: KeyboardEvent) => { if (!e.repeat) this.continueRun(); });
-      this.input.on('pointerup', () => this.continueRun());
+      // Only a tap that starts now counts: a thumb still down from the Level (its lift) must not skip the card.
+      let tapStarted = false;
+      this.input.on('pointerdown', () => { tapStarted = true; });
+      this.input.on('pointerup', () => { if (tapStarted) this.continueRun(); });
     });
   }
 
