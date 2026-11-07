@@ -147,7 +147,6 @@ export class OverlayScene extends Phaser.Scene {
     this.pauseOverlay?.destroy();
     this.pauseOverlay = undefined;
     this.pauseLabel = undefined;
-    this.tags = new Map();
     this.scene.resume(this.host);
   }
 

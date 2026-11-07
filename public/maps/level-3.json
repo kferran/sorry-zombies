@@ -117,8 +117,8 @@
      "id": 4,
      "name": "",
      "type": "cat",
-     "x": 600,
-     "y": 160,
+     "x": 792,
+     "y": 144,
      "width": 0,
      "height": 0,
      "rotation": 0,
@@ -136,18 +136,6 @@
      "id": 5,
      "name": "",
      "type": "skeleton",
-     "x": 648,
-     "y": 160,
-     "width": 0,
-     "height": 0,
-     "rotation": 0,
-     "visible": true,
-     "point": true
-    },
-    {
-     "id": 6,
-     "name": "",
-     "type": "skeleton",
      "x": 888,
      "y": 144,
      "width": 0,
@@ -157,7 +145,7 @@
      "point": true
     },
     {
-     "id": 7,
+     "id": 6,
      "name": "",
      "type": "skeleton",
      "x": 1112,
@@ -169,11 +157,11 @@
      "point": true
     },
     {
-     "id": 8,
+     "id": 7,
      "name": "",
      "type": "skeleton",
-     "x": 1288,
-     "y": 128,
+     "x": 1208,
+     "y": 112,
      "width": 0,
      "height": 0,
      "rotation": 0,
@@ -181,7 +169,7 @@
      "point": true
     },
     {
-     "id": 9,
+     "id": 8,
      "name": "",
      "type": "checkpoint",
      "x": 1528,
@@ -193,7 +181,7 @@
      "point": true
     },
     {
-     "id": 10,
+     "id": 9,
      "name": "",
      "type": "cat",
      "x": 1768,
@@ -212,7 +200,7 @@
      ]
     },
     {
-     "id": 11,
+     "id": 10,
      "name": "",
      "type": "skeleton",
      "x": 1896,
@@ -224,7 +212,7 @@
      "point": true
     },
     {
-     "id": 12,
+     "id": 11,
      "name": "",
      "type": "skeleton",
      "x": 1976,
@@ -236,10 +224,22 @@
      "point": true
     },
     {
+     "id": 12,
+     "name": "",
+     "type": "skeleton",
+     "x": 2200,
+     "y": 96,
+     "width": 0,
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "point": true
+    },
+    {
      "id": 13,
      "name": "",
      "type": "skeleton",
-     "x": 2152,
+     "x": 2296,
      "y": 96,
      "width": 0,
      "height": 0,
@@ -251,18 +251,6 @@
      "id": 14,
      "name": "",
      "type": "skeleton",
-     "x": 2248,
-     "y": 96,
-     "width": 0,
-     "height": 0,
-     "rotation": 0,
-     "visible": true,
-     "point": true
-    },
-    {
-     "id": 15,
-     "name": "",
-     "type": "skeleton",
      "x": 2456,
      "y": 80,
      "width": 0,
@@ -272,7 +260,7 @@
      "point": true
     },
     {
-     "id": 16,
+     "id": 15,
      "name": "",
      "type": "skeleton",
      "x": 2696,
@@ -284,7 +272,7 @@
      "point": true
     },
     {
-     "id": 17,
+     "id": 16,
      "name": "",
      "type": "cat",
      "x": 2760,
@@ -301,6 +289,18 @@
        "value": "Mr. Whiskers"
       }
      ]
+    },
+    {
+     "id": 17,
+     "name": "",
+     "type": "skeleton",
+     "x": 2888,
+     "y": 80,
+     "width": 0,
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "point": true
     },
     {
      "id": 18,

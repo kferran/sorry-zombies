@@ -1,14 +1,14 @@
 import Phaser from 'phaser';
 import { Enemy, type Vec } from './Enemy';
 import { ENEMY, GHOST_BODY } from './enemy.stats';
-import { bobOffset, driftVelocity, fadeInAlpha } from './ghostMotion';
+import { bobOffset, driftVelocity, fadeInAlpha, ghostTarget } from './ghostMotion';
 
 /** It turns to face the hero only once he is this far to the other side (no flicker overhead). */
 const TURN_PX = 3;
 
 /**
  * Asleep: fully faded (alpha 0) and harmless. Wakes into a 400 ms fade-in (harmless meanwhile),
- * then drifts straight at the hero at 25 px/s through graves and walls (no gravity, no ground
+ * then drifts at 25 px/s to a point beside the hero at whip height (`ghostTarget`) through graves and walls (no gravity, no ground
  * collision), bobbing ±3 px at 1.5 Hz. The bob moves only the drawing: the display origin and
  * the body offset shift together, so the body stays where physics put it. Faces left in the atlas.
  */
@@ -48,10 +48,11 @@ export class Ghost extends Enemy {
     this.setAlpha(fadeInAlpha(t, GHOST_BODY.fadeInMs));
     this.setBob(bobOffset(t));
     if (now < this.waitUntil) { this.setVelocity(0, 0); return; } // listening
-    const dx = hero.x - this.body.center.x;
-    const dy = hero.y - this.body.center.y;
-    if (Math.abs(dx) > TURN_PX) this.face(dx > 0 ? 1 : -1);
-    const { vx, vy } = driftVelocity(dx, dy, ENEMY.ghost.speed);
+    const toHero = hero.x - this.body.center.x;
+    if (Math.abs(toHero) > TURN_PX) this.face(toHero > 0 ? 1 : -1);
+    // Heads for whip height beside him (it faces him, so `-facing` is the side it's on).
+    const target = ghostTarget(hero, this.body.center.x, this.facing === 1 ? -1 : 1);
+    const { vx, vy } = driftVelocity(target.x - this.body.center.x, target.y - this.body.center.y, ENEMY.ghost.speed);
     this.setVelocity(vx, vy);
   }
 

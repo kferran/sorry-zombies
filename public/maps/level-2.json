@@ -117,7 +117,7 @@
      "id": 4,
      "name": "",
      "type": "skeleton",
-     "x": 664,
+     "x": 680,
      "y": 192,
      "width": 0,
      "height": 0,
@@ -140,6 +140,18 @@
     {
      "id": 6,
      "name": "",
+     "type": "skeleton",
+     "x": 888,
+     "y": 192,
+     "width": 0,
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "point": true
+    },
+    {
+     "id": 7,
+     "name": "",
      "type": "ghost",
      "x": 968,
      "y": 88,
@@ -150,22 +162,10 @@
      "point": true
     },
     {
-     "id": 7,
-     "name": "",
-     "type": "skeleton",
-     "x": 1096,
-     "y": 192,
-     "width": 0,
-     "height": 0,
-     "rotation": 0,
-     "visible": true,
-     "point": true
-    },
-    {
      "id": 8,
      "name": "",
      "type": "skeleton",
-     "x": 1144,
+     "x": 984,
      "y": 192,
      "width": 0,
      "height": 0,
@@ -175,18 +175,6 @@
     },
     {
      "id": 9,
-     "name": "",
-     "type": "skeleton",
-     "x": 1272,
-     "y": 192,
-     "width": 0,
-     "height": 0,
-     "rotation": 0,
-     "visible": true,
-     "point": true
-    },
-    {
-     "id": 10,
      "name": "",
      "type": "checkpoint",
      "x": 1528,
@@ -198,19 +186,7 @@
      "point": true
     },
     {
-     "id": 11,
-     "name": "",
-     "type": "skeleton",
-     "x": 1768,
-     "y": 192,
-     "width": 0,
-     "height": 0,
-     "rotation": 0,
-     "visible": true,
-     "point": true
-    },
-    {
-     "id": 12,
+     "id": 10,
      "name": "",
      "type": "skeleton",
      "x": 1784,
@@ -222,7 +198,19 @@
      "point": true
     },
     {
-     "id": 13,
+     "id": 11,
+     "name": "",
+     "type": "skeleton",
+     "x": 1832,
+     "y": 192,
+     "width": 0,
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "point": true
+    },
+    {
+     "id": 12,
      "name": "",
      "type": "skeleton",
      "x": 1896,
@@ -234,7 +222,7 @@
      "point": true
     },
     {
-     "id": 14,
+     "id": 13,
      "name": "",
      "type": "ghost",
      "x": 1944,
@@ -246,11 +234,23 @@
      "point": true
     },
     {
+     "id": 14,
+     "name": "",
+     "type": "skeleton",
+     "x": 2408,
+     "y": 192,
+     "width": 0,
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "point": true
+    },
+    {
      "id": 15,
      "name": "",
      "type": "skeleton",
-     "x": 2088,
-     "y": 192,
+     "x": 2536,
+     "y": 96,
      "width": 0,
      "height": 0,
      "rotation": 0,
@@ -261,8 +261,8 @@
      "id": 16,
      "name": "",
      "type": "skeleton",
-     "x": 2536,
-     "y": 96,
+     "x": 2600,
+     "y": 192,
      "width": 0,
      "height": 0,
      "rotation": 0,

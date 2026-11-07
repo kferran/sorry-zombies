@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { driftVelocity, bobOffset, fadeInAlpha } from './ghostMotion';
+import { driftVelocity, bobOffset, fadeInAlpha, ghostTarget } from './ghostMotion';
 
 describe('driftVelocity', () => {
   it('heads straight for the hero at the given speed', () => {
@@ -30,5 +30,36 @@ describe('fadeInAlpha', () => {
     expect(fadeInAlpha(200, 400)).toBeCloseTo(0.5);
     expect(fadeInAlpha(400, 400)).toBe(1);
     expect(fadeInAlpha(900, 400)).toBe(1);
+  });
+});
+
+describe('ghostTarget', () => {
+  // Hero body centre (100, 172): 20 wide, 40 tall, so its top is 152. The whip band is top+8..top+28.
+  const hero = { x: 100, y: 172 };
+
+  it('aims at whip height', () => {
+    expect(ghostTarget(hero, 160).y).toBe(152 + 8 + 10);
+    expect(ghostTarget(hero, 40).y).toBe(170);
+  });
+
+  it('aims beside the hero on the side the ghost comes from', () => {
+    expect(ghostTarget(hero, 160).x).toBe(116);
+    expect(ghostTarget(hero, 40).x).toBe(84);
+  });
+
+  it('a ghost settled on the target is inside a grounded swing facing it, and just touching the hero', () => {
+    const t = ghostTarget(hero, 160);
+    const ghost = { left: t.x - 9, right: t.x + 9, top: t.y - 18, bottom: t.y + 18 };
+    const whip = { left: 110, right: 134, top: 160, bottom: 180 };
+    const body = { left: 90, right: 110, top: 152, bottom: 192 };
+    const overlaps = (a: typeof ghost, b: typeof ghost) =>
+      a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    expect(overlaps(ghost, whip)).toBe(true);
+    expect(overlaps(ghost, body)).toBe(true);
+  });
+
+  it('straight overhead, it picks its facing side', () => {
+    expect(ghostTarget(hero, 100, 1).x).toBe(116);
+    expect(ghostTarget(hero, 100, -1).x).toBe(84);
   });
 });
