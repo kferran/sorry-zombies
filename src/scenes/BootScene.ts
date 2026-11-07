@@ -90,6 +90,9 @@ export class BootScene extends Phaser.Scene {
       { key: 'skeleton-rise', frames: frames('skeleton-rise-clothed', 6), duration: SKELETON_BODY.riseMs, repeat: 0 },
       { key: 'skeleton-walk', frames: frames('skeleton-clothed', 8), frameRate: 8, repeat: -1 },
       { key: 'enemy-death', frames: frames('enemy-death', 5), frameRate: 12, repeat: 0 },
+      { key: 'ghost-float', frames: frames('ghost-halo', 4), frameRate: 6, repeat: -1 },
+      // One pounce's airtime is 2 × 180 / 900 = 400 ms: the four frames run over it, ending stretched out.
+      { key: 'cat-pounce', frames: frames('hell-gato', 4), duration: 400, repeat: 0 },
     ]);
   }
 

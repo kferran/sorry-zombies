@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { ENEMY } from '../../entities/enemy/enemy.stats';
 import { resolve } from 'node:path';
 import { parseLevel, LevelError, type LevelData } from './LevelLoader';
 
@@ -148,5 +149,12 @@ describe('every shipped map is valid', () => {
     expect(count(l2, 'ghost')).toBeLessThanOrEqual(3);
     expect(count(l3, 'skeleton')).toBeGreaterThanOrEqual(10);
     expect(count(l3, 'cat')).toBe(3);
+  });
+
+  // Respawning at a lit lantern wakes anything within the wake distance at once.
+  it.each(['level-1', 'level-2', 'level-3'])('%s keeps every enemy out of waking range of the lantern', (key) => {
+    const l = load(key);
+    const wake = Math.max(ENEMY.skeleton.wake, ENEMY.ghost.wake, ENEMY.cat.wake);
+    for (const s of l.spawns) expect(Math.abs(s.x - l.checkpoint!.x), `${s.type} at x ${s.x}`).toBeGreaterThan(wake);
   });
 });

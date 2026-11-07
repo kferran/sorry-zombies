@@ -40,3 +40,27 @@ describe('swingLineKind', () => {
     expect(swingLineKind(['killed', 'hit'])).toBe('kill');
   });
 });
+
+describe('swingLineKind with enemy kinds', () => {
+  it('a ghost put-down says a ghostKill line', () => {
+    expect(swingLineKind(['killed'], ['ghost'])).toBe('ghostKill');
+  });
+
+  it('a cat put-down says a catKill line', () => {
+    expect(swingLineKind(['killed'], ['cat'])).toBe('catKill');
+  });
+
+  it('a skeleton put-down still says a kill line', () => {
+    expect(swingLineKind(['killed'], ['skeleton'])).toBe('kill');
+  });
+
+  it('hitting a cat (not putting it down) says a hit line', () => {
+    expect(swingLineKind(['hit'], ['cat'])).toBe('hit');
+  });
+
+  it('several put-downs in one swing: cat beats ghost beats skeleton', () => {
+    expect(swingLineKind(['killed', 'killed'], ['skeleton', 'ghost'])).toBe('ghostKill');
+    expect(swingLineKind(['killed', 'killed', 'killed'], ['ghost', 'cat', 'skeleton'])).toBe('catKill');
+    expect(swingLineKind(['killed', 'hit'], ['skeleton', 'cat'])).toBe('kill');
+  });
+});

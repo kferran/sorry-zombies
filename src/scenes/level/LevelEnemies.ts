@@ -4,12 +4,18 @@ import type { HitResult } from '../../entities/health/Health';
 import type { Hero } from '../../entities/hero/Hero';
 import type { Enemy } from '../../entities/enemy/Enemy';
 import { Skeleton } from '../../entities/enemy/Skeleton';
-import { ENEMY_KNOCKBACK } from '../../entities/enemy/enemy.stats';
+import { Ghost } from '../../entities/enemy/Ghost';
+import { HellCat } from '../../entities/enemy/HellCat';
+import { ENEMY_KNOCKBACK, GHOST_BODY } from '../../entities/enemy/enemy.stats';
+import type { NameTag } from '../../shared/nameTags';
 import type { LevelData } from '../../features/levels/LevelLoader';
 import { overlaps } from './HeroCombat';
 
 /** What happened among the enemies this frame. */
 export type EnemyFrame = { risen: Enemy[]; touching: Enemy | null };
+
+/** A put-down ghost fading out as it rises (Level clock). */
+type Fade = { image: Phaser.GameObjects.Image; y0: number; startAt: number };
 
 /**
  * The level's enemies: spawning from the map, waking, thinking, contact with the hero, taking
@@ -20,7 +26,10 @@ export class LevelEnemies {
   private effects: Phaser.GameObjects.Sprite[] = [];
   private flashing: Enemy[] = [];
   private dying: Enemy[] = [];
+  private fades: Fade[] = [];
   private nextId = 1;
+  /** The Level clock at the last `update()` (put-downs finish between updates). */
+  private lastNow = 0;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -30,14 +39,21 @@ export class LevelEnemies {
   ) {
     const probe = (x: number, y: number) => ground.hasTileAtWorldXY(x, y);
     for (const s of spawns) {
-      if (s.type === 'skeleton') this.list.push(new Skeleton(scene, s.x, s.y, this.nextId++, probe));
-      // Ghosts and hell-cats arrive in Task 9.
+      const id = this.nextId++;
+      switch (s.type) {
+        case 'skeleton': this.list.push(new Skeleton(scene, s.x, s.y, id, probe)); break;
+        case 'ghost': this.list.push(new Ghost(scene, s.x, s.y, id)); break;
+        case 'cat': this.list.push(new HellCat(scene, s.x, s.y, id, s.name)); break;
+      }
     }
-    scene.physics.add.collider(this.list, ground);
+    // Ghosts drift through graves and walls; everything else stands on the ground.
+    scene.physics.add.collider(this.list.filter(e => e.kind !== 'ghost'), ground);
   }
 
   /** Wakes the ones the hero has come near, runs the awake ones, and finds one that can hurt him. */
   update(hero: Hero, now: number): EnemyFrame {
+    this.lastNow = now;
+    this.updateFades(now);
     const at = { x: hero.body.center.x, y: hero.body.center.y };
     const risen: Enemy[] = [];
     let touching: Enemy | null = null;
@@ -87,17 +103,46 @@ export class LevelEnemies {
   /** Plays the death effect where each put-down enemy stood and removes it. */
   finishPutDowns(): void {
     for (const e of this.dying) {
-      const fx = this.scene.add.sprite(e.x, e.y, 'gv-atlas', 'enemy-death-1').setOrigin(0.5, 1).setDepth(6);
+      this.list.splice(this.list.indexOf(e), 1);
+      if (e.kind === 'ghost') this.fadeOut(e);
+      else this.burnUp(e);
+      e.destroy();
+    }
+    this.dying = [];
+  }
+
+  /** Name tags of the awake hell-cats, above their heads (world px), for the Overlay. */
+  nameTags(): NameTag[] {
+    return this.list
+      .filter((e): e is HellCat => e instanceof HellCat && e.awake && !e.health.dead)
+      .map(c => ({ id: c.enemyId, text: c.catName, x: c.body.center.x, y: c.body.top - 4 }));
+  }
+
+  /** The skeleton (and hell-cat) death effect where it stood. */
+  private burnUp(e: Enemy): void {
+    const fx = this.scene.add.sprite(e.x, e.y, 'gv-atlas', 'enemy-death-1').setOrigin(0.5, 1).setDepth(6);
       this.effects.push(fx);
       fx.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
         this.effects = this.effects.filter(f => f !== fx);
         fx.destroy();
       });
       fx.play('enemy-death');
-      this.list.splice(this.list.indexOf(e), 1);
-      e.destroy();
-    }
-    this.dying = [];
+  }
+
+  /** A ghost sighs away: a still copy of it fades out while drifting up. */
+  private fadeOut(e: Enemy): void {
+    const image = this.scene.add.image(e.x, e.y, e.texture.key, e.frame.name)
+      .setOrigin(e.originX, e.originY).setFlipX(e.flipX).setDepth(e.depth);
+    this.fades.push({ image, y0: e.y, startAt: this.lastNow });
+  }
+
+  private updateFades(now: number): void {
+    this.fades = this.fades.filter(f => {
+      const t = (now - f.startAt) / GHOST_BODY.fadeOutMs;
+      if (t >= 1) { f.image.destroy(); return false; }
+      f.image.setAlpha(1 - t).setY(f.y0 - GHOST_BODY.fadeOutRisePx * t);
+      return true;
+    });
   }
 
   /** Every animated sprite here (the hit-stop pauses them). */

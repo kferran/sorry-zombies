@@ -4,6 +4,7 @@ import { MODES, type ModeConfig } from '../shared/modes';
 import { viewportNeedsLandscape } from '../shared/orientation';
 import { worldToScreen, type Point } from '../shared/projection';
 import { SpeechBubble } from '../features/apologies/SpeechBubble';
+import { hasNameTags } from '../shared/nameTags';
 import { HERO } from '../entities/hero/hero.stats';
 
 export type OverlayData = {
@@ -27,6 +28,8 @@ export class OverlayScene extends Phaser.Scene {
   private bubble!: SpeechBubble;
   private pauseOverlay?: Phaser.GameObjects.Container;
   private pauseLabel?: Phaser.GameObjects.Text;
+  /** Name tags on screen, by tag id (a hell-cat's enemy id). */
+  private tags = new Map<number, Phaser.GameObjects.Text>();
 
   constructor() { super('Overlay'); }
 
@@ -40,6 +43,7 @@ export class OverlayScene extends Phaser.Scene {
   create(): void {
     this.pauseOverlay = undefined;
     this.pauseLabel = undefined;
+    this.tags = new Map();
     this.hearts = Array.from({ length: HERO.hearts }, (_, i) => this.add.image(28 + i * 26, 28, 'heart'));
     this.drawHearts(this.startHearts);
     this.add.text(this.scale.width / 2, 16, this.stageName, {
@@ -68,6 +72,35 @@ export class OverlayScene extends Phaser.Scene {
       this.scale.off(Phaser.Scale.Events.ORIENTATION_CHANGE, onResize);
       this.bubble.destroy();
     });
+  }
+
+  /** Keeps a name tag above each thing the host lists, dropping tags it no longer lists. */
+  update(): void {
+    const host = this.scene.get(this.host);
+    const wanted = hasNameTags(host) ? host.nameTags() : [];
+    const seen = new Set<number>();
+    for (const tag of wanted) {
+      seen.add(tag.id);
+      let label = this.tags.get(tag.id);
+      if (!label) {
+        label = this.add.text(0, 0, tag.text, {
+          fontFamily: 'monospace', fontSize: '14px', color: '#ffd6f0', stroke: '#000000', strokeThickness: 3,
+        }).setOrigin(0.5, 1).setDepth(800);
+        this.tags.set(tag.id, label);
+      }
+      const at = this.project(tag);
+      label.setText(tag.text).setPosition(Math.round(at.x), Math.round(at.y));
+    }
+    for (const [id, label] of this.tags) {
+      if (seen.has(id)) continue;
+      label.destroy();
+      this.tags.delete(id);
+    }
+  }
+
+  /** Name tags on screen now (play checks). */
+  get nameTagTexts(): string[] {
+    return [...this.tags.values()].map(t => t.text);
   }
 
   get guiltEnabled(): boolean {
@@ -114,6 +147,7 @@ export class OverlayScene extends Phaser.Scene {
     this.pauseOverlay?.destroy();
     this.pauseOverlay = undefined;
     this.pauseLabel = undefined;
+    this.tags = new Map();
     this.scene.resume(this.host);
   }
 

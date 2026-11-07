@@ -9,9 +9,11 @@ import { LevelError, parseLevel, type LevelData } from '../features/levels/Level
 import { swingLineKind } from '../features/combat/SwingHits';
 import { ApologyPicker, type LineKind } from '../features/apologies/ApologyPicker';
 import { LINES } from '../features/apologies/lines';
+import { nameCatLine } from '../features/apologies/catLine';
 import { Hero } from '../entities/hero/Hero';
 import { GRAVITY, HERO } from '../entities/hero/hero.stats';
 import type { Enemy } from '../entities/enemy/Enemy';
+import { HellCat } from '../entities/enemy/HellCat';
 import { WAIT, waitMsFor } from '../entities/enemy/enemy.stats';
 import { STAGES } from './run/stages';
 import { RunState, decideFrame } from './run/RunState';
@@ -19,6 +21,7 @@ import { HeroCombat, overlaps } from './level/HeroCombat';
 import { LevelEnemies } from './level/LevelEnemies';
 import { LevelHitStop } from './level/LevelHitStop';
 import type { OverlayScene } from './OverlayScene';
+import type { NameTag } from '../shared/nameTags';
 
 export type LevelInit = {
   run?: RunState;
@@ -232,7 +235,9 @@ export class LevelScene extends Phaser.Scene {
     if (this.hitStop.active) return; // frozen from this frame on (the paused swing must not fall back to idle)
 
     const { risen, touching } = enemies.update(hero, now);
-    if (risen.length > 0 && now - this.hitLineAt >= HIT_LINE_HOLD_MS) this.say('rise');
+    // Only skeletons announce themselves; ghosts and hell-cats wake silently.
+    const climbed = risen.some(e => e.kind === 'skeleton');
+    if (climbed && now - this.hitLineAt >= HIT_LINE_HOLD_MS) this.say('rise');
     if (touching) this.touched(touching, now);
 
     if (!(now < hero.frozenUntil) && !hero.attacking) {
@@ -256,6 +261,7 @@ export class LevelScene extends Phaser.Scene {
       case 'clear':
         this.ending = true;
         this.run.clearStage();
+        bus.emit('stageCleared', { stage: this.stageIndex });
         this.scene.start('LevelCard', { run: this.run, stage: this.stageIndex });
         break;
       case 'continue':
@@ -267,9 +273,15 @@ export class LevelScene extends Phaser.Scene {
   private retry(): void {
     this.retryAt = undefined;
     this.run.retry();
+    bus.emit('retry', { stage: this.stageIndex });
     const data: LevelInit = { run: this.run, stageIndex: this.stageIndex };
     if (this.mapKey !== STAGES[this.stageIndex].key) data.mapKey = this.mapKey;
     this.scene.restart(data);
+  }
+
+  /** Hell-cat name tags for the Overlay (world px). */
+  nameTags(): NameTag[] {
+    return this.enemies?.nameTags() ?? [];
   }
 
   /** Is the checkpoint lantern lit? (Play checks.) */
@@ -314,9 +326,12 @@ export class LevelScene extends Phaser.Scene {
       stats.enemiesHurt++;
       if (r === 'killed') stats.enemiesPutDown++;
     }
-    const kind = swingLineKind(results);
+    const kind = swingLineKind(results, struck.map(e => e.kind));
     if (!kind) return;
-    const line = this.say(kind);
+    const cat = kind === 'catKill'
+      ? struck.find((e, i): e is HellCat => e instanceof HellCat && results[i] === 'killed')
+      : undefined;
+    const line = this.say(kind, cat ? text => nameCatLine(text, cat.catName) : undefined);
     this.hitLineAt = now;
     for (const e of struck) if (!e.health.dead) e.waitFor(now, waitMsFor(line));
     this.hitStop.start([this.hero!, ...this.enemies!.sprites()]);
@@ -337,9 +352,10 @@ export class LevelScene extends Phaser.Scene {
     }
   }
 
-  /** The hero says a line (tiered by stage where the kind has tiers) and returns it. */
-  private say(kind: LineKind): string {
-    const text = this.picker.pick(kind, 1, STAGES[this.stageIndex].tier);
+  /** The hero says a line (tiered by stage where the kind has tiers, `edit`ed if given) and returns it. */
+  private say(kind: LineKind, edit?: (text: string) => string): string {
+    const picked = this.picker.pick(kind, 1, STAGES[this.stageIndex].tier);
+    const text = edit ? edit(picked) : picked;
     this.overlay().say(text, this.heroHead);
     return text;
   }

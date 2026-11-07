@@ -4,7 +4,9 @@ import type { Line } from './ApologyPicker';
  * Every line the hero says lives here. To add one, copy a line and change the text.
  *
  * kind:  'hit' (enemy hurt), 'kill' (enemy put down), 'rise' (a skeleton climbs out of its grave),
- *        'hurt' (the hero gets hit), 'ghostKill' / 'catKill' (a ghost / a hell-cat is put down),
+ *        'hurt' (the hero gets hit), 'ghostKill' / 'catKill' (a ghost / a hell-cat is put down;
+ *        in a catKill line {name} becomes the cat's name, and a line without it gets
+ *        "Sorry, <name>. " in front),
  *        'apology' (bow / Sorry! button), 'breakdown' (guilt hits 100),
  *        'preApology' (a guilty swing stops short), 'levelCleared' (end-of-level card),
  *        'bossJudge' (the Groundskeeper judges your apologies), 'bossDisappointed' (you hit it
@@ -116,11 +118,11 @@ export const LINES: Line[] = [
   { kind: 'ghostKill', text: 'Was that a ghost, or just a very sad sheet?' },
   { kind: 'ghostKill', text: 'Oh dear. Now you’re more transparent than before.' },
   { kind: 'ghostKill', text: 'I hope the other side has better manners than I do.' },
-  { kind: 'catKill', text: 'It had a name tag! It said Mr. Whiskers! Oh no!' },
-  { kind: 'catKill', text: 'Someone is looking for you, kitty. I’m so sorry.' },
+  { kind: 'catKill', text: 'It had a name tag! It said {name}! Oh no!' },
+  { kind: 'catKill', text: 'Someone is looking for you, {name}. I’m so sorry.' },
   { kind: 'catKill', text: 'Bad kitty. Good kitty. Sorry, kitty.' },
   { kind: 'catKill', text: 'I only wanted to pet you. From a distance. With a whip.' },
-  { kind: 'catKill', text: 'Fluffy? Was your name Fluffy? It’s on the tag. I’m sorry, Fluffy.' },
+  { kind: 'catKill', text: '{name}? Was your name {name}? It’s on the tag. I’m so sorry.' },
 
   // ── Guilty swing stops short ──────────────────────────
   { kind: 'preApology', text: 'I’m about to hit you and I’m so sorry!' },

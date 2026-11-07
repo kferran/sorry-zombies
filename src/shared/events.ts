@@ -15,6 +15,10 @@ export type GameEventMap = {
   enemyPutDown: { enemyId: number; kind: SpawnType; stage: number };
   /** Side-scroller: the hero's last heart is gone (Task 8 turns this into a retry). */
   heroDown: Record<string, never>;
+  /** Side-scroller: the hero reached the exit. `stage` is the stage index. */
+  stageCleared: { stage: number };
+  /** Side-scroller: the stage restarts after the last heart went. */
+  retry: { stage: number };
   apologized: { cleared: number };
   guiltChanged: { guilt: number; level: 0 | 1 | 2 };
   waveStarted: { wave: number };
