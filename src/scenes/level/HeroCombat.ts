@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { SwingRules } from '../../features/combat/SwingRules';
+import { SwingRules, type SwingGuiltLevel } from '../../features/combat/SwingRules';
 import { SwingHits } from '../../features/combat/SwingHits';
 import type { Hero } from '../../entities/hero/Hero';
 import { WHIP } from '../../entities/hero/hero.stats';
@@ -15,6 +15,10 @@ export class HeroCombat {
   readonly hitbox: Phaser.GameObjects.Zone;
   /** Number of swings started (play checks). */
   swingCount = 0;
+  /** Number of swings that stopped short (play checks). */
+  stopShortCount = 0;
+  /** Level-clock time the last swing started (play checks). */
+  lastSwingAt = -Infinity;
 
   private rules = new SwingRules();
   private hits = new SwingHits();
@@ -34,15 +38,20 @@ export class HeroCombat {
     return this.body.enable;
   }
 
-  /** Starts a swing if the cooldown allows (`now` is the Level clock). */
-  trySwing(now: number): boolean {
-    const { started, stopShort } = this.rules.tryStart(now, 0); // guilt wiring: Task 11
-    if (!started) return false;
+  /**
+   * Starts a swing if the cooldown allows (`now` is the Level clock; guilt level 1 and 2 add 100 / 200 ms).
+   * A swing that `stopShort`s plays its wind-up and halts on its first live frame without a hitbox.
+   */
+  trySwing(now: number, guiltLevel: SwingGuiltLevel = 0): { started: boolean; stopShort: boolean } {
+    const result = this.rules.tryStart(now, guiltLevel);
+    if (!result.started) return result;
     this.swingCount += 1;
-    this.stopShort = stopShort;
+    if (result.stopShort) this.stopShortCount += 1;
+    this.lastSwingAt = now;
+    this.stopShort = result.stopShort;
     this.hits.begin();
     this.hero.play('hero-attack');
-    return true;
+    return result;
   }
 
   /** Puts the hitbox in front of the hero and switches it on for live frames. Call every frame. */

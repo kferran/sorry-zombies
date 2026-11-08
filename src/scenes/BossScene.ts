@@ -80,11 +80,17 @@ export class BossScene extends StageScene {
     cam.centerOn(map.widthInPixels / 2, map.heightInPixels / 2);
   }
 
-  /** Full Conscience (Task 11 sends the presses): a bow while it listens is accepted once per pause. */
-  protected override bowed(_now: number): void {
-    if (!this.brain.bow()) return;
+  /** Full Conscience: a bow the guilt meter accepted, while it listens, is accepted once per pause. */
+  protected override bossBow(): boolean {
+    if (!this.brain.bow()) return false;
     this.sayBoss('bossAccept');
     bus.emit('bossAccepted', { pause: this.brain.pause as 1 | 2 | 3 });
+    return true;
+  }
+
+  /** The skeletons, or the Groundskeeper while it is fighting (a phase). */
+  protected override anyAwake(): boolean {
+    return super.anyAwake() || (this.boss !== undefined && this.brain.state === 'phase');
   }
 
   /** The skeletons as in a level, then the Groundskeeper. */
@@ -129,11 +135,13 @@ export class BossScene extends StageScene {
       return;
     }
     this.run.stats.enemiesHurt++; // whip hits on the Groundskeeper count as enemies hurt (not put to rest)
+    const brokeDown = this.addGuilt(boss.enemyId, 'hit'); // a hit, never a put-down: it isn't put to rest
     boss.flash();
     if (this.hitLineAt !== now) { // one line per swing: a skeleton struck by the same swing already got one
       this.say('hit');
       this.hitLineAt = now;
     }
+    if (brokeDown) this.breakDown(now);
     // Fold its arms before the freeze, so the hit-stop doesn't hold (and later resume) ghost-float.
     if (this.brain.state === 'listening') this.startListening(boss, now);
     else boss.recoil(now);

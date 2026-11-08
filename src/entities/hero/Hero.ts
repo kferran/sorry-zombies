@@ -51,11 +51,15 @@ export class Hero extends Phaser.Physics.Arcade.Sprite {
     if (this.anims.currentAnim?.key !== anim) this.play(anim);
   }
 
-  /** Takes a hit unless invulnerable (`now` is the Level clock, `LevelScene.now`). `force` is the horizontal knockback (signed); default pushes him backwards. */
-  hurt(now: number, force?: number): boolean {
-    if (now < this.invulnerableUntil) return false;
+  /**
+   * Takes a hit unless invulnerable (`now` is the Level clock, `LevelScene.now`); `ignoreInvulnerable`
+   * takes it anyway (a breakdown). `force` is the horizontal knockback (signed); default pushes him
+   * backwards. A longer freeze already under way (a bow, a kneel) is kept.
+   */
+  hurt(now: number, force?: number, ignoreInvulnerable = false): boolean {
+    if (!ignoreInvulnerable && now < this.invulnerableUntil) return false;
     this.invulnerableUntil = now + HERO.invulnMs;
-    this.frozenUntil = now + HURT_FREEZE_MS;
+    this.frozenUntil = Math.max(this.frozenUntil, now + HURT_FREEZE_MS);
     this.setVelocity(force ?? -this.facing * HERO.knockback, -HERO.knockback);
     this.play('hero-hurt');
     this.scene.tweens.add({
@@ -63,5 +67,23 @@ export class Hero extends Phaser.Physics.Arcade.Sprite {
       onComplete: () => this.setAlpha(1),
     });
     return true;
+  }
+
+  /**
+   * Guilt hits 100: he drops to his knees where he stands for `kneelMs` and loses a heart whatever
+   * his invulnerability says (the scene does the heart). `hero-crouch` is the kneel: `hero-hurt` is a recoil.
+   */
+  breakDown(now: number, kneelMs: number): void {
+    this.hurt(now, 0, true);
+    this.setVelocity(0, Math.max(0, this.body.velocity.y)); // no hop, no slide; falls if in the air
+    this.frozenUntil = Math.max(this.frozenUntil, now + kneelMs);
+    this.play('hero-crouch');
+  }
+
+  /** A bow: the crouch pose, controls ignored for `freezeMs`. */
+  bow(now: number, freezeMs: number): void {
+    this.setVelocityX(0);
+    this.frozenUntil = Math.max(this.frozenUntil, now + freezeMs);
+    this.play('hero-crouch');
   }
 }

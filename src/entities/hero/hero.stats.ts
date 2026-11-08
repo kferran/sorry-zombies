@@ -11,6 +11,10 @@ export const HERO = {
   hearts: 3,
   invulnMs: 1000,
   knockback: 120,
+  /** Full Conscience: a bow freezes him this long. */
+  bowFreezeMs: 500,
+  /** Full Conscience: a breakdown (guilt 100) keeps him on his knees this long. */
+  breakdownKneelMs: 2000,
 } as const;
 
 /** Hero frames are 100×59 with the character drawn inside; the body hugs the character. */

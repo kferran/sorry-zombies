@@ -4,6 +4,8 @@ import { MODES, type ModeConfig } from '../shared/modes';
 import { viewportNeedsLandscape } from '../shared/orientation';
 import { worldToScreen, type Point } from '../shared/projection';
 import { SpeechBubble } from '../features/apologies/SpeechBubble';
+import { GuiltBar } from '../features/guilt/GuiltBar';
+import { guiltLevel, type GuiltLevel } from '../features/guilt/GuiltMeter';
 import { hasNameTags } from '../shared/nameTags';
 import { HERO } from '../entities/hero/hero.stats';
 import { STICK_RADIUS } from '../shared/input/touchSticks';
@@ -15,7 +17,12 @@ export type OverlayData = {
   /** The zoomed scene underneath (whose camera bubbles project through and which pause pauses). */
   host?: string;
   hearts?: number;
+  /** Full Conscience: the guilt meter at the start (it carries over between stages and tries). */
+  guilt?: number;
 };
+
+/** The guilt bar's centre line: under the stage name, clear of the hearts (left) and the touch buttons (bottom). */
+const GUILT_BAR_Y = 58;
 
 /** Touch buttons: fill alpha at rest and while pressed. */
 const BUTTON_ALPHA = { rest: 0.18, pressed: 0.5 } as const;
@@ -34,6 +41,8 @@ export class OverlayScene extends Phaser.Scene {
   private stageName = '';
   private host = 'Level';
   private startHearts: number = HERO.hearts;
+  private startGuilt = 0;
+  private guiltBar?: GuiltBar;
   private hearts: Phaser.GameObjects.Image[] = [];
   private bubbles!: Record<Speaker, SpeechBubble>;
   private pauseOverlay?: Phaser.GameObjects.Container;
@@ -52,6 +61,7 @@ export class OverlayScene extends Phaser.Scene {
     this.stageName = data.stageName ?? '';
     this.host = data.host ?? 'Level';
     this.startHearts = data.hearts ?? HERO.hearts;
+    this.startGuilt = data.guilt ?? 0;
   }
 
   create(): void {
@@ -66,6 +76,12 @@ export class OverlayScene extends Phaser.Scene {
     this.add.text(this.scale.width / 2, 16, this.stageName, {
       fontFamily: 'monospace', fontSize: '22px', color: '#ffffff', stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5, 0);
+    this.guiltBar = undefined;
+    if (this.mode.guilt) {
+      this.guiltBar = new GuiltBar(this, { y: GUILT_BAR_Y, showValue: true });
+      this.guiltBar.set(this.startGuilt, guiltLevel(this.startGuilt));
+      bus.on('guiltChanged', this.onGuilt, this);
+    }
     const project = (p: Point) => this.project(p);
     this.bubbles = { hero: new SpeechBubble(this, project), boss: new SpeechBubble(this, project) };
 
@@ -83,6 +99,7 @@ export class OverlayScene extends Phaser.Scene {
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       bus.off('heartsChanged', this.onHearts, this);
+      bus.off('guiltChanged', this.onGuilt, this);
       kb.off('keydown-ESC', this.togglePause, this);
       kb.off('keydown-P', this.togglePause, this);
       document.removeEventListener('visibilitychange', onVisibility);
@@ -227,6 +244,15 @@ export class OverlayScene extends Phaser.Scene {
     } else if (this.paused) {
       this.pauseLabel?.setText(PAUSED);
     }
+  }
+
+  /** The guilt number on the bar now, or null without a bar (play checks). */
+  get guiltShown(): string | null {
+    return this.guiltBar?.shownValue ?? null;
+  }
+
+  private onGuilt({ guilt, level }: { guilt: number; level: GuiltLevel }): void {
+    this.guiltBar?.set(guilt, level);
   }
 
   private onHearts({ hearts }: { hearts: number }): void {
