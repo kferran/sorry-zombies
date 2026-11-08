@@ -71,12 +71,14 @@ export class Hero extends Phaser.Physics.Arcade.Sprite {
 
   /**
    * Guilt hits 100: he drops to his knees where he stands for `kneelMs` and loses a heart whatever
-   * his invulnerability says (the scene does the heart). `hero-crouch` is the kneel: `hero-hurt` is a recoil.
+   * his invulnerability says (the scene does the heart); he stays invulnerable for the whole kneel. `hero-crouch` is the kneel: `hero-hurt` is a recoil.
    */
   breakDown(now: number, kneelMs: number): void {
     this.hurt(now, 0, true);
     this.setVelocity(0, Math.max(0, this.body.velocity.y)); // no hop, no slide; falls if in the air
     this.frozenUntil = Math.max(this.frozenUntil, now + kneelMs);
+    // Helpless on his knees: nothing else can hurt him until he gets up (the breakdown heart itself ignored invulnerability).
+    this.invulnerableUntil = Math.max(this.invulnerableUntil, now + kneelMs);
     this.play('hero-crouch');
   }
 
