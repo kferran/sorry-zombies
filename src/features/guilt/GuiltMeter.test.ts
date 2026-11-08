@@ -90,4 +90,16 @@ describe('GuiltMeter', () => {
     expect(g.wobbleDegrees()).toBe(0);
     expect(g.apologize(0)).toEqual({ accepted: true, cleared: 0 });
   });
+
+  it('restartClock lets a bow through on a fresh clock (a new stage or retry starts at 0); debts stay', () => {
+    const g = new GuiltMeter(true);
+    g.onKill(1);
+    g.onKill(2);
+    expect(g.apologize(40000).accepted).toBe(true); // late in the last try
+    expect(g.apologize(500)).toEqual({ accepted: false, cleared: 0 }); // the new clock reads earlier: stuck
+    g.restartClock();
+    expect(g.apologize(500)).toEqual({ accepted: true, cleared: 10 });
+    expect(g.apologize(1000)).toEqual({ accepted: false, cleared: 0 }); // the cooldown still runs on the new clock
+    expect(g.value).toBe(0);
+  });
 });

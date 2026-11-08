@@ -109,6 +109,7 @@ export abstract class StageScene extends Phaser.Scene {
     this.hitLineAt = -Infinity;
     this.jumpAt = -Infinity;
     this.elapsed = 0;
+    this.run.guilt.restartClock(); // the bow cooldown is measured on the Level clock, which starts again here
     this.sampler = new GuiltSampler();
     this.grey = undefined;
     this.conscienceLog.length = 0;

@@ -51,6 +51,15 @@ export class GuiltMeter {
     return this.add(zombieId, GUILT.kill);
   }
 
+  /**
+   * The caller's clock started again from 0 (the side-scroller's Level clock restarts with every
+   * stage and retry, while the meter lives on the run): forget the last apology's time so the
+   * cooldown isn't measured against a time the new clock won't reach for a while. Debts stay.
+   */
+  restartClock(): void {
+    this.lastApologyAt = -Infinity;
+  }
+
   apologize(nowMs: number): { accepted: boolean; cleared: number } {
     if (!this.enabled) return { accepted: true, cleared: 0 };
     if (nowMs - this.lastApologyAt < GUILT.apologyCooldownMs) return { accepted: false, cleared: 0 };
